@@ -1,0 +1,45 @@
+prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Source {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         String?
+  url          String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  institutions Institution[]
+
+  @@map("sources")
+}
+
+model Institution {
+  id            Int       @id @default(autoincrement())
+  name          String
+  type          String?
+  address       String?
+  region        String?
+  township      String?
+  phone         String?
+  email         String?
+  website       String?
+  latitude      Decimal?  @db.Decimal(10, 7)
+  longitude     Decimal?  @db.Decimal(10, 7)
+  schoolLevel   String?   @map("school_level")
+  classes       String?
+  openingPeriod String?   @map("opening_period")
+  sourceId      Int?      @map("source_id")
+  rawData       Json?     @map("raw_data")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @map("updated_at")
+
+  source Source? @relation(fields: [sourceId], references: [id])
+
+  @@map("institutions")
+}
