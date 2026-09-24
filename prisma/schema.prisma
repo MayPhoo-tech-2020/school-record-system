@@ -6,38 +6,49 @@ datasource db {
   provider = "postgresql"
 }
 
-model Source {
-  id           Int           @id @default(autoincrement())
-  name         String
-  type         String?
-  url          String?
-  createdAt    DateTime      @default(now()) @map("created_at")
-  institutions Institution[]
+model SchoolType {
+  id         Int    @id @default(autoincrement())
+  schoolType String @map("school_type")
 
-  @@map("sources")
+  moes MOE[]
+
+  @@map("SchoolType")
 }
 
-model Institution {
-  id            Int       @id @default(autoincrement())
-  name          String
-  type          String?
-  address       String?
-  region        String?
-  township      String?
-  phone         String?
-  email         String?
-  website       String?
-  latitude      Decimal?  @db.Decimal(10, 7)
-  longitude     Decimal?  @db.Decimal(10, 7)
-  schoolLevel   String?   @map("school_level")
-  classes       String?
-  openingPeriod String?   @map("opening_period")
-  sourceId      Int?      @map("source_id")
-  rawData       Json?     @map("raw_data")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @default(now()) @map("updated_at")
+model AllowedSchoolLevel {
+  id          Int    @id @default(autoincrement())
+  schoolLevel String @map("school_level")
 
-  source Source? @relation(fields: [sourceId], references: [id])
+  moes MOE[]
 
-  @@map("institutions")
+  @@map("AllowedSchoolLevel")
+}
+
+model ClassToBeTaught {
+  id              Int    @id @default(autoincrement())
+  classToBeTaught String @map("class_to_be_taught")
+
+  moes MOE[]
+
+  @@map("ClassToBeTaught")
+}
+
+model MOE {
+  id                   Int      @id @default(autoincrement())
+  schoolName           String   @map("school_name")
+  schoolAddress        String?  @map("school_address")
+  openingPeriod        String?  @map("opening_period")
+
+  schoolTypeId         Int?     @map("school_type_id")
+  allowedSchoolLevelId Int?     @map("allowed_school_level_id")
+  classToBeTaughtId    Int?     @map("class_to_be_taught_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  schoolType         SchoolType?         @relation(fields: [schoolTypeId], references: [id])
+  allowedSchoolLevel AllowedSchoolLevel? @relation(fields: [allowedSchoolLevelId], references: [id])
+  classToBeTaught    ClassToBeTaught?    @relation(fields: [classToBeTaughtId], references: [id])
+
+  @@map("MOE")
 }

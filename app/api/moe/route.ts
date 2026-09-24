@@ -12,24 +12,29 @@ const prisma = new PrismaClient({
 
 export async function GET() {
   try {
-    const institutions = await prisma.institution.findMany({
+    const moeSchools = await prisma.mOE.findMany({
       orderBy: {
         id: "asc",
+      },
+      include: {
+        schoolType: true,
+        allowedSchoolLevel: true,
+        classToBeTaught: true,
       },
     });
 
     return NextResponse.json({
       success: true,
-      count: institutions.length,
-      data: institutions,
+      count: moeSchools.length,
+      data: moeSchools,
     });
   } catch (error) {
-    console.error("GET /api/institutions error:", error);
+    console.error("GET /api/moe error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to fetch institutions",
+        message: "Failed to fetch MOE schools",
       },
       { status: 500 }
     );
