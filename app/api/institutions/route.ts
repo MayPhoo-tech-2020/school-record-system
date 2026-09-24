@@ -1,36 +1,27 @@
-import { sql } from "@vercel/postgres";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
+
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 export async function GET() {
   try {
-    const { rows } = await sql`
-      SELECT
-        id,
-        name,
-        type,
-        address,
-        region,
-        township,
-        phone,
-        email,
-        website,
-        latitude,
-        longitude,
-        school_level,
-        classes,
-        opening_period,
-        source_id,
-        raw_data,
-        created_at,
-        updated_at
-      FROM institutions
-      ORDER BY id;
-    `;
+    const institutions = await prisma.institution.findMany({
+      orderBy: {
+        id: "asc",
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      count: rows.length,
-      data: rows,
+      count: institutions.length,
+      data: institutions,
     });
   } catch (error) {
     console.error("GET /api/institutions error:", error);
