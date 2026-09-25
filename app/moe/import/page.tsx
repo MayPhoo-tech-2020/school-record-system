@@ -109,12 +109,9 @@ export default function MoeImportPage() {
           break;
         }
 
-        buffer += decoder.decode(
-          value,
-          {
-            stream: true,
-          }
-        );
+        buffer += decoder.decode(value, {
+          stream: true,
+        });
 
         const lines = buffer.split("\n");
 
@@ -172,8 +169,7 @@ export default function MoeImportPage() {
            * Individual record progress
            */
           else if (
-            data.type ===
-            "record_progress"
+            data.type === "record_progress"
           ) {
             setCurrentSheet(
               data.sheetIndex
@@ -210,8 +206,7 @@ export default function MoeImportPage() {
            * Sheet completed
            */
           else if (
-            data.type ===
-            "sheet_complete"
+            data.type === "sheet_complete"
           ) {
             setCompletedSheets(
               (previous) => [
@@ -358,18 +353,83 @@ export default function MoeImportPage() {
             multiple worksheets.
           </p>
 
-          {/* File Input */}
+          {/* Upload Area */}
           <div
             style={{
               marginTop: "25px",
+              padding: "30px",
+              borderRadius: "12px",
+              border: "2px dashed #93c5fd",
+              background: "#eff6ff",
+              textAlign: "center",
             }}
           >
-            <input
-              type="file"
-              accept=".csv,.xlsx,.json"
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
+            <div
+              style={{
+                fontSize: "42px",
+                marginBottom: "10px",
+              }}
+            >
+              📤
+            </div>
+
+            <h2
+              style={{
+                margin: "0 0 8px",
+                fontSize: "21px",
+                color: "#111827",
+              }}
+            >
+              Upload MOE School Data
+            </h2>
+
+            <p
+              style={{
+                margin: "0 0 18px",
+                color: "#64748b",
+                lineHeight: "1.5",
+              }}
+            >
+              Click the button below to select
+              your school data file.
+            </p>
+
+            <label
+              style={{
+                display: "inline-block",
+                padding: "12px 24px",
+                background: "#2563eb",
+                color: "#ffffff",
+                borderRadius: "8px",
+                fontSize: "16px",
+                fontWeight: "bold",
+                cursor: uploading
+                  ? "not-allowed"
+                  : "pointer",
+                opacity: uploading ? 0.6 : 1,
+              }}
+            >
+              Choose File
+              <input
+                type="file"
+                accept=".csv,.xlsx,.json"
+                onChange={handleFileChange}
+                disabled={uploading}
+                style={{
+                  display: "none",
+                }}
+              />
+            </label>
+
+            <div
+              style={{
+                marginTop: "14px",
+                fontSize: "13px",
+                color: "#64748b",
+              }}
+            >
+              Supported formats: CSV · XLSX · JSON
+            </div>
           </div>
 
           {/* Selected File */}
@@ -377,16 +437,32 @@ export default function MoeImportPage() {
             <div
               style={{
                 marginTop: "15px",
-                padding: "12px",
-                background: "#f1f5f9",
+                padding: "15px 18px",
+                background: "#f0fdf4",
+                border: "1px solid #86efac",
                 borderRadius: "8px",
-                color: "#334155",
+                color: "#166534",
               }}
             >
-              <strong>
-                Selected file:
-              </strong>{" "}
-              {file.name}
+              <div
+                style={{
+                  fontSize: "13px",
+                  marginBottom: "5px",
+                  fontWeight: "bold",
+                }}
+              >
+                ✓ FILE SELECTED
+              </div>
+
+              <div
+                style={{
+                  fontSize: "16px",
+                  color: "#14532d",
+                  wordBreak: "break-word",
+                }}
+              >
+                {file.name}
+              </div>
             </div>
           )}
 
@@ -396,13 +472,14 @@ export default function MoeImportPage() {
             onClick={handleUpload}
             disabled={!file || uploading}
             style={{
+              width: "100%",
               marginTop: "20px",
-              padding: "12px 22px",
+              padding: "14px 22px",
               border: "none",
               borderRadius: "8px",
               background:
                 !file || uploading
-                  ? "#aaa"
+                  ? "#cbd5e1"
                   : "#111827",
               color: "#ffffff",
               cursor:
@@ -410,11 +487,12 @@ export default function MoeImportPage() {
                   ? "not-allowed"
                   : "pointer",
               fontSize: "16px",
+              fontWeight: "bold",
             }}
           >
             {uploading
               ? "Importing..."
-              : "Upload & Import"}
+              : "Start Import"}
           </button>
 
           {/* Progress */}
