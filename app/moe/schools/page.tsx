@@ -28,6 +28,8 @@ export default function MOESchoolsPage() {
   const [classToBeTaught, setClassToBeTaught] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedSchool, setSelectedSchool] =
+    useState<School | null>(null);
 
   useEffect(() => {
     async function fetchSchools() {
@@ -248,11 +250,6 @@ export default function MOESchoolsPage() {
     setCurrentPage(1);
   };
 
-  const clearSearch = () => {
-    setSearch("");
-    setCurrentPage(1);
-  };
-
   const hasFilters = Boolean(
     search ||
       region ||
@@ -285,19 +282,21 @@ export default function MOESchoolsPage() {
       return "bg-gray-100 text-gray-600";
     }
 
-    if (type.toLowerCase().includes("international")) {
+    const value = type.toLowerCase();
+
+    if (value.includes("international")) {
       return "bg-purple-100 text-purple-700";
     }
 
-    if (type.toLowerCase().includes("college")) {
+    if (value.includes("college")) {
       return "bg-blue-100 text-blue-700";
     }
 
-    if (type.toLowerCase().includes("higher")) {
+    if (value.includes("higher")) {
       return "bg-orange-100 text-orange-700";
     }
 
-    if (type.toLowerCase().includes("basic")) {
+    if (value.includes("basic")) {
       return "bg-green-100 text-green-700";
     }
 
@@ -340,108 +339,93 @@ export default function MOESchoolsPage() {
   return (
     <main className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
               <Link
                 href="/moe"
-                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 transition hover:text-blue-700"
+                className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 ← Back to MOE
               </Link>
 
-              <div className="mt-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                    MOE School Records
-                  </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                  MOE School Records
+                </h1>
 
-                  {!loading && !error && (
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                      {schools.length.toLocaleString()} Records
-                    </span>
-                  )}
-                </div>
-
-                <p className="mt-1 text-sm text-slate-500 sm:text-base">
-                  Search and manage school records from the Ministry of
-                  Education.
-                </p>
+                {!loading && !error && (
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {schools.length.toLocaleString()} Records
+                  </span>
+                )}
               </div>
+
+              <p className="mt-2 text-sm text-slate-500 sm:text-base">
+                Search and manage school records from the Ministry
+                of Education.
+              </p>
             </div>
 
             <Link
               href="/moe/import"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto"
             >
-              <span className="text-base">📥</span>
-              Import More Data
+              📥 Import More Data
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Main */}
-      <section className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         {/* Loading */}
         {loading && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-              <div className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
 
-            <h2 className="mt-4 text-base font-semibold text-slate-900">
-              Loading school records
+            <h2 className="mt-4 font-semibold text-slate-900">
+              Loading school records...
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Please wait while the MOE data is being loaded.
+              Please wait.
             </p>
           </div>
         )}
 
         {/* Error */}
         {!loading && error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-lg">
-                !
-              </div>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+            <h2 className="font-semibold text-red-900">
+              Unable to load school data
+            </h2>
 
-              <div>
-                <h2 className="font-semibold text-red-900">
-                  Unable to load school data
-                </h2>
+            <p className="mt-1 text-sm text-red-700">
+              {error}
+            </p>
 
-                <p className="mt-1 text-sm text-red-700">
-                  {error}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+            >
+              Try Again
+            </button>
           </div>
         )}
 
-        {/* Content */}
         {!loading && !error && (
           <>
             {/* Search & Filters */}
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white px-4 py-5 sm:px-6">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-lg">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
                         🔎
-                      </div>
+                      </span>
 
                       <h2 className="text-lg font-semibold text-slate-900">
                         Search & Filters
@@ -449,8 +433,8 @@ export default function MOESchoolsPage() {
                     </div>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      Find schools by name, address, location, or school
-                      information.
+                      Search by school name or address and narrow the
+                      results using filters.
                     </p>
                   </div>
 
@@ -458,9 +442,9 @@ export default function MOESchoolsPage() {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="self-start rounded-lg px-3 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 sm:self-auto"
+                      className="self-start rounded-lg px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
                     >
-                      Clear all
+                      Clear All
                     </button>
                   )}
                 </div>
@@ -477,18 +461,9 @@ export default function MOESchoolsPage() {
                   </label>
 
                   <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                      <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <circle cx="11" cy="11" r="7" />
-                        <path d="m20 20-4-4" />
-                      </svg>
-                    </div>
+                    <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      🔍
+                    </span>
 
                     <input
                       id="search"
@@ -496,596 +471,627 @@ export default function MOESchoolsPage() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Search school name or address..."
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50 py-3.5 pl-11 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                     />
-
-                    {search && (
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        aria-label="Clear search"
-                        className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 transition hover:text-slate-700"
-                      >
-                        <span className="text-xl leading-none">
-                          ×
-                        </span>
-                      </button>
-                    )}
                   </div>
                 </div>
 
                 {/* Filters */}
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                  {/* Region */}
-                  <div>
-                    <label
-                      htmlFor="region"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
-                    >
-                      Region / State
-                    </label>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                  <FilterSelect
+                    id="region"
+                    label="Region / State"
+                    value={region}
+                    onChange={(value) => {
+                      setRegion(value);
+                      setTownship("");
+                    }}
+                    options={regions}
+                    placeholder="All Regions / States"
+                  />
 
-                    <select
-                      id="region"
-                      value={region}
-                      onChange={(e) => {
-                        setRegion(e.target.value);
-                        setTownship("");
-                      }}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="">
-                        All Regions / States
-                      </option>
+                  <FilterSelect
+                    id="township"
+                    label="Township"
+                    value={township}
+                    onChange={setTownship}
+                    options={townships}
+                    placeholder="All Townships"
+                  />
 
-                      {regions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterSelect
+                    id="schoolType"
+                    label="School Type"
+                    value={schoolType}
+                    onChange={setSchoolType}
+                    options={schoolTypes}
+                    placeholder="All School Types"
+                  />
 
-                  {/* Township */}
-                  <div>
-                    <label
-                      htmlFor="township"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
-                    >
-                      Township
-                    </label>
+                  <FilterSelect
+                    id="schoolLevel"
+                    label="Allowed School Level"
+                    value={schoolLevel}
+                    onChange={setSchoolLevel}
+                    options={schoolLevels}
+                    placeholder="All School Levels"
+                  />
 
-                    <select
-                      id="township"
-                      value={township}
-                      onChange={(e) => setTownship(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="">
-                        All Townships
-                      </option>
-
-                      {townships.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* School Type */}
-                  <div>
-                    <label
-                      htmlFor="schoolType"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
-                    >
-                      School Type
-                    </label>
-
-                    <select
-                      id="schoolType"
-                      value={schoolType}
-                      onChange={(e) =>
-                        setSchoolType(e.target.value)
-                      }
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="">
-                        All School Types
-                      </option>
-
-                      {schoolTypes.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* School Level */}
-                  <div>
-                    <label
-                      htmlFor="schoolLevel"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
-                    >
-                      Allowed School Level
-                    </label>
-
-                    <select
-                      id="schoolLevel"
-                      value={schoolLevel}
-                      onChange={(e) =>
-                        setSchoolLevel(e.target.value)
-                      }
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="">
-                        All School Levels
-                      </option>
-
-                      {schoolLevels.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Class */}
-                  <div>
-                    <label
-                      htmlFor="classToBeTaught"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
-                    >
-                      Class to Be Taught
-                    </label>
-
-                    <select
-                      id="classToBeTaught"
-                      value={classToBeTaught}
-                      onChange={(e) =>
-                        setClassToBeTaught(e.target.value)
-                      }
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                    >
-                      <option value="">All Classes</option>
-
-                      {classes.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterSelect
+                    id="classToBeTaught"
+                    label="Class to Be Taught"
+                    value={classToBeTaught}
+                    onChange={setClassToBeTaught}
+                    options={classes}
+                    placeholder="All Classes"
+                  />
                 </div>
 
-                {/* Active Filters */}
-                {hasFilters && (
-                  <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5">
-                    <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Active filters
+                {/* Active filter count */}
+                {activeFilterCount > 0 && (
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+                      {activeFilterCount} active filter
+                      {activeFilterCount === 1 ? "" : "s"}
                     </span>
-
-                    {search && (
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                      >
-                        Search: {search}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-
-                    {region && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRegion("");
-                          setTownship("");
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                      >
-                        {region}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-
-                    {township && (
-                      <button
-                        type="button"
-                        onClick={() => setTownship("")}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                      >
-                        {township}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-
-                    {schoolType && (
-                      <button
-                        type="button"
-                        onClick={() => setSchoolType("")}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                      >
-                        {schoolType}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-
-                    {schoolLevel && (
-                      <button
-                        type="button"
-                        onClick={() => setSchoolLevel("")}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                      >
-                        {schoolLevel}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
-
-                    {classToBeTaught && (
-                      <button
-                        type="button"
-                        onClick={() => setClassToBeTaught("")}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
-                      >
-                        {classToBeTaught}
-                        <span className="text-sm">×</span>
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Result Summary */}
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Summary */}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Total Records
-                    </p>
-
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {schools.length.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                    🏫
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Matching Schools
-                    </p>
-
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {filteredSchools.length.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-xl">
-                    ✓
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">
-                      Active Filters
-                    </p>
-
-                    <p className="mt-1 text-2xl font-bold text-slate-900">
-                      {activeFilterCount}
-                    </p>
-                  </div>
-
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl">
-                    ⚙️
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Results Header */}
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  School Records
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  {filteredSchools.length.toLocaleString()} school
-                  {filteredSchools.length === 1 ? "" : "s"} found
+                <p className="text-sm font-medium text-slate-500">
+                  Total Records
                 </p>
-              </div>
 
-              {filteredSchools.length > 0 && (
-                <div className="rounded-lg bg-white px-3 py-2 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-                  Showing{" "}
-                  <span className="font-semibold text-slate-700">
-                    {startRecord.toLocaleString()}–
-                    {endRecord.toLocaleString()}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-slate-700">
-                    {filteredSchools.length.toLocaleString()}
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-2xl font-bold text-slate-900">
+                    {schools.length.toLocaleString()}
+                  </p>
+
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+                    🏫
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* No Results */}
-            {filteredSchools.length === 0 && (
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm sm:p-16">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl">
-                  🔍
-                </div>
-
-                <h2 className="mt-5 text-lg font-bold text-slate-900">
-                  No schools found
-                </h2>
-
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-                  No school records match your current search and
-                  filter settings. Try changing the filters or search
-                  term.
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">
+                  Matching Schools
                 </p>
 
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="mt-6 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md"
-                >
-                  Clear All Filters
-                </button>
+                <div className="mt-2 flex items-center justify-between">
+                  <p className="text-2xl font-bold text-slate-900">
+                    {filteredSchools.length.toLocaleString()}
+                  </p>
+
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50">
+                    ✓
+                  </span>
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Desktop / Tablet Table */}
-            {filteredSchools.length > 0 && (
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-600">
-                      Page {currentPage.toLocaleString()} of{" "}
-                      {totalPages.toLocaleString()}
-                    </p>
+            {/* Results */}
+            <div className="mt-7">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    School Records
+                  </h2>
 
-                    <p className="text-xs text-slate-400">
-                      50 records per page
-                    </p>
-                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {filteredSchools.length.toLocaleString()} school
+                    {filteredSchools.length === 1 ? "" : "s"} found
+                  </p>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1450px] w-full border-collapse text-sm">
-                    <thead className="sticky top-[89px] z-10">
-                      <tr className="border-b border-slate-200 bg-slate-100 text-left">
-                        <th className="w-16 whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          #
-                        </th>
+                {filteredSchools.length > 0 && (
+                  <p className="text-sm text-slate-500">
+                    Showing{" "}
+                    <span className="font-semibold text-slate-700">
+                      {startRecord.toLocaleString()}–
+                      {endRecord.toLocaleString()}
+                    </span>
+                  </p>
+                )}
+              </div>
 
-                        <th className="w-[260px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          School Name
-                        </th>
+              {/* No Results */}
+              {filteredSchools.length === 0 && (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+                    🔍
+                  </div>
 
-                        <th className="w-[180px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Region / State
-                        </th>
+                  <h3 className="mt-4 font-semibold text-slate-900">
+                    No schools found
+                  </h3>
 
-                        <th className="w-[170px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Township
-                        </th>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Try changing your search or filters.
+                  </p>
 
-                        <th className="w-[190px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          School Type
-                        </th>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              )}
 
-                        <th className="w-[220px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Allowed School Level
-                        </th>
+              {/* Desktop Table */}
+              {filteredSchools.length > 0 && (
+                <div className="mt-4 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[900px] text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                          <th className="w-16 px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            #
+                          </th>
 
-                        <th className="w-[180px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Class to Be Taught
-                        </th>
+                          <th className="px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            School Name
+                          </th>
 
-                        <th className="w-[350px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          School Address
-                        </th>
+                          <th className="px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Region / State
+                          </th>
 
-                        <th className="w-[220px] whitespace-nowrap px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          Opening Period
-                        </th>
-                      </tr>
-                    </thead>
+                          <th className="px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Township
+                          </th>
 
-                    <tbody className="divide-y divide-slate-100">
-                      {paginatedSchools.map((school, index) => {
-                        const regionName = getRegion(
-                          school.schoolAddress
-                        );
+                          <th className="px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            School Type
+                          </th>
 
-                        const townshipName = getTownship(
-                          school.schoolAddress
-                        );
+                          <th className="px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Class
+                          </th>
 
-                        const rowNumber =
-                          (currentPage - 1) *
-                            RECORDS_PER_PAGE +
-                          index +
-                          1;
+                          <th className="w-24 px-4 py-4 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
 
-                        return (
-                          <tr
-                            key={school.id}
-                            className="group transition hover:bg-blue-50/50"
-                          >
-                            <td className="whitespace-nowrap px-4 py-4 align-top text-sm font-medium text-slate-400">
-                              {rowNumber}
-                            </td>
+                      <tbody className="divide-y divide-slate-100">
+                        {paginatedSchools.map((school, index) => {
+                          const rowNumber =
+                            (currentPage - 1) *
+                              RECORDS_PER_PAGE +
+                            index +
+                            1;
 
-                            <td className="px-4 py-4 align-top">
-                              <div className="max-w-[250px]">
+                          return (
+                            <tr
+                              key={school.id}
+                              className="transition hover:bg-blue-50/50"
+                            >
+                              <td className="px-4 py-4 align-top text-slate-400">
+                                {rowNumber}
+                              </td>
+
+                              <td className="max-w-[320px] px-4 py-4 align-top">
                                 <p
                                   className="font-semibold leading-5 text-slate-900"
                                   title={school.schoolName}
                                 >
                                   {school.schoolName || "-"}
                                 </p>
-                              </div>
-                            </td>
+                              </td>
 
-                            <td className="px-4 py-4 align-top text-slate-600">
-                              {regionName || "-"}
-                            </td>
+                              <td className="px-4 py-4 align-top text-slate-600">
+                                {getRegion(
+                                  school.schoolAddress
+                                ) || "-"}
+                              </td>
 
-                            <td className="px-4 py-4 align-top text-slate-600">
-                              {townshipName || "-"}
-                            </td>
+                              <td className="px-4 py-4 align-top text-slate-600">
+                                {getTownship(
+                                  school.schoolAddress
+                                ) || "-"}
+                              </td>
 
-                            <td className="px-4 py-4 align-top">
-                              {school.schoolType ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getSchoolTypeBadge(
-                                    school.schoolType
-                                  )}`}
+                              <td className="px-4 py-4 align-top">
+                                {school.schoolType ? (
+                                  <span
+                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getSchoolTypeBadge(
+                                      school.schoolType
+                                    )}`}
+                                  >
+                                    {school.schoolType}
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+
+                              <td className="px-4 py-4 align-top">
+                                {school.classToBeTaught ? (
+                                  <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                                    {school.classToBeTaught}
+                                  </span>
+                                ) : (
+                                  "-"
+                                )}
+                              </td>
+
+                              <td className="px-4 py-4 text-right align-top">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedSchool(school)
+                                  }
+                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                                 >
-                                  {school.schoolType}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">
-                                  -
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="px-4 py-4 align-top text-slate-600">
-                              {school.allowedSchoolLevel || "-"}
-                            </td>
-
-                            <td className="px-4 py-4 align-top">
-                              {school.classToBeTaught ? (
-                                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700">
-                                  {school.classToBeTaught}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">
-                                  -
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="px-4 py-4 align-top text-slate-600">
-                              <p
-                                className="max-w-[330px] leading-5"
-                                title={school.schoolAddress || ""}
-                              >
-                                {school.schoolAddress || "-"}
-                              </p>
-                            </td>
-
-                            <td className="px-4 py-4 align-top text-slate-600">
-                              {school.openingPeriod || "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
+              )}
 
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <p className="text-sm text-slate-500">
-                        Page{" "}
-                        <span className="font-semibold text-slate-700">
-                          {currentPage.toLocaleString()}
-                        </span>{" "}
-                        of{" "}
-                        <span className="font-semibold text-slate-700">
-                          {totalPages.toLocaleString()}
-                        </span>
-                      </p>
+              {/* Mobile Cards */}
+              {filteredSchools.length > 0 && (
+                <div className="mt-4 space-y-3 md:hidden">
+                  {paginatedSchools.map((school, index) => {
+                    const rowNumber =
+                      (currentPage - 1) *
+                        RECORDS_PER_PAGE +
+                      index +
+                      1;
 
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCurrentPage((page) =>
-                              Math.max(1, page - 1)
-                            )
-                          }
-                          disabled={currentPage === 1}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          ← Previous
-                        </button>
+                    return (
+                      <div
+                        key={school.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-slate-400">
+                                #{rowNumber}
+                              </span>
 
-                        <div className="flex items-center gap-1">
-                          {getPageNumbers().map((page, index) => {
-                            if (page === "...") {
-                              return (
-                                <span
-                                  key={`dots-${index}`}
-                                  className="px-2 text-sm text-slate-400"
-                                >
-                                  ...
-                                </span>
-                              );
-                            }
-
-                            return (
-                              <button
-                                key={page}
-                                type="button"
-                                onClick={() =>
-                                  setCurrentPage(page as number)
-                                }
-                                className={`min-w-9 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                                  currentPage === page
-                                    ? "bg-blue-600 text-white shadow-sm"
-                                    : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                                }`}
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${getSchoolTypeBadge(
+                                  school.schoolType
+                                )}`}
                               >
-                                {page}
-                              </button>
-                            );
-                          })}
+                                {school.schoolType || "Unknown"}
+                              </span>
+                            </div>
+
+                            <h3 className="mt-2 font-semibold leading-5 text-slate-900">
+                              {school.schoolName || "-"}
+                            </h3>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedSchool(school)
+                            }
+                            className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white"
+                          >
+                            View
+                          </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCurrentPage((page) =>
-                              Math.min(totalPages, page + 1)
-                            )
-                          }
-                          disabled={currentPage === totalPages}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Next →
-                        </button>
+                        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              Region / State
+                            </p>
+
+                            <p className="mt-1 text-sm text-slate-700">
+                              {getRegion(
+                                school.schoolAddress
+                              ) || "-"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              Township
+                            </p>
+
+                            <p className="mt-1 text-sm text-slate-700">
+                              {getTownship(
+                                school.schoolAddress
+                              ) || "-"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              Class
+                            </p>
+
+                            <p className="mt-1 text-sm text-slate-700">
+                              {school.classToBeTaught || "-"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                              School Level
+                            </p>
+
+                            <p className="mt-1 line-clamp-2 text-sm text-slate-700">
+                              {school.allowedSchoolLevel || "-"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {filteredSchools.length > 0 && totalPages > 1 && (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+                    <p className="text-sm text-slate-500">
+                      Page{" "}
+                      <span className="font-semibold text-slate-700">
+                        {currentPage}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-semibold text-slate-700">
+                        {totalPages}
+                      </span>
+                    </p>
+
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage((page) =>
+                            Math.max(1, page - 1)
+                          )
+                        }
+                        disabled={currentPage === 1}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ←
+                      </button>
+
+                      {getPageNumbers().map((page, index) => {
+                        if (page === "...") {
+                          return (
+                            <span
+                              key={`dots-${index}`}
+                              className="px-2 text-sm text-slate-400"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() =>
+                              setCurrentPage(page as number)
+                            }
+                            className={`min-w-9 rounded-lg px-3 py-2 text-sm font-medium ${
+                              currentPage === page
+                                ? "bg-blue-600 text-white"
+                                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrentPage((page) =>
+                            Math.min(totalPages, page + 1)
+                          )
+                        }
+                        disabled={currentPage === totalPages}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        →
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </section>
+
+      {/* School Details Modal */}
+      {selectedSchool && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={() => setSelectedSchool(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                    School Details
+                  </p>
+
+                  <h2 className="mt-1 text-lg font-bold leading-6 text-slate-900 sm:text-xl">
+                    {selectedSchool.schoolName || "-"}
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedSchool(null)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 sm:p-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailItem
+                  label="School Type"
+                  value={selectedSchool.schoolType}
+                />
+
+                <DetailItem
+                  label="Region / State"
+                  value={
+                    getRegion(
+                      selectedSchool.schoolAddress
+                    )
+                  }
+                />
+
+                <DetailItem
+                  label="Township"
+                  value={
+                    getTownship(
+                      selectedSchool.schoolAddress
+                    )
+                  }
+                />
+
+                <DetailItem
+                  label="Allowed School Level"
+                  value={
+                    selectedSchool.allowedSchoolLevel
+                  }
+                />
+
+                <DetailItem
+                  label="Class to Be Taught"
+                  value={
+                    selectedSchool.classToBeTaught
+                  }
+                />
+
+                <DetailItem
+                  label="Opening Period"
+                  value={selectedSchool.openingPeriod}
+                />
+              </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  School Address
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {selectedSchool.schoolAddress || "-"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSchool(null)}
+                className="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
+  );
+}
+
+/* --------------------------------
+   Reusable Filter Select
+-------------------------------- */
+
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-2 block text-sm font-semibold text-slate-700"
+      >
+        {label}
+      </label>
+
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+      >
+        <option value="">{placeholder}</option>
+
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/* --------------------------------
+   School Detail Item
+-------------------------------- */
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+
+      <p className="mt-2 text-sm font-medium leading-5 text-slate-800">
+        {value || "-"}
+      </p>
+    </div>
   );
 }
