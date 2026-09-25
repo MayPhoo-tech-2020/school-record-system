@@ -29,9 +29,7 @@ function cleanString(value: unknown): string {
   return String(value).trim();
 }
 
-function parseInteger(
-  value: unknown
-): number | null {
+function parseInteger(value: unknown): number | null {
   if (
     value === null ||
     value === undefined ||
@@ -175,57 +173,6 @@ function parseXLSX(
   });
 }
 
-async function validateLookupIds(
-  schoolTypeId: number | null,
-  allowedSchoolLevelId: number | null,
-  classToBeTaughtId: number | null
-) {
-  if (schoolTypeId !== null) {
-    const exists =
-      await prisma.schoolType.findUnique({
-        where: {
-          id: schoolTypeId,
-        },
-      });
-
-    if (!exists) {
-      throw new Error(
-        `SchoolType ID ${schoolTypeId} does not exist.`
-      );
-    }
-  }
-
-  if (allowedSchoolLevelId !== null) {
-    const exists =
-      await prisma.allowedSchoolLevel.findUnique({
-        where: {
-          id: allowedSchoolLevelId,
-        },
-      });
-
-    if (!exists) {
-      throw new Error(
-        `AllowedSchoolLevel ID ${allowedSchoolLevelId} does not exist.`
-      );
-    }
-  }
-
-  if (classToBeTaughtId !== null) {
-    const exists =
-      await prisma.classToBeTaught.findUnique({
-        where: {
-          id: classToBeTaughtId,
-        },
-      });
-
-    if (!exists) {
-      throw new Error(
-        `ClassToBeTaught ID ${classToBeTaughtId} does not exist.`
-      );
-    }
-  }
-}
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -248,24 +195,36 @@ export async function POST(request: Request) {
     let records: ImportRecord[] = [];
 
     /*
-     * ----------------------------------------
-     * Parse file
-     * ----------------------------------------
+     * CSV
      */
-
     if (fileName.endsWith(".csv")) {
       const text = await file.text();
 
       records = parseCSV(text);
-    } else if (fileName.endsWith(".json")) {
+    }
+
+    /*
+     * JSON
+     */
+    else if (fileName.endsWith(".json")) {
       const text = await file.text();
 
       records = parseJSON(text);
-    } else if (fileName.endsWith(".xlsx")) {
+    }
+
+    /*
+     * Excel
+     */
+    else if (fileName.endsWith(".xlsx")) {
       const buffer = await file.arrayBuffer();
 
       records = parseXLSX(buffer);
-    } else {
+    }
+
+    /*
+     * Unsupported file
+     */
+    else {
       return NextResponse.json(
         {
           success: false,
@@ -288,25 +247,36 @@ export async function POST(request: Request) {
     }
 
     /*
-     * ----------------------------------------
-     * Validate all records first
-     * ----------------------------------------
+     * Prepare records.
+     *
+     * No data-quality validation is performed here.
+     *
+     * schoolName is required by Prisma,
+     * so empty values become an empty string.
+     *
+     * Other optional fields become NULL.
      */
-
     const preparedRecords = records.map(
-      (record, index) => {
-        const schoolName = cleanString(
-          record.school_name
-        );
-
-        if (!schoolName) {
-          throw new Error(
-            `Row ${index + 2}: school_name is required.`
+      (record) => {
+        const schoolName =
+          cleanString(
+            record.school_name
           );
-        }
+
+        const schoolAddress =
+          cleanString(
+            record.school_address
+          ) || null;
+
+        const openingPeriod =
+          cleanString(
+            record.opening_period
+          ) || null;
 
         const schoolTypeId =
-          parseInteger(record.school_type_id);
+          parseInteger(
+            record.school_type_id
+          );
 
         const allowedSchoolLevelId =
           parseInteger(
@@ -320,16 +290,8 @@ export async function POST(request: Request) {
 
         return {
           schoolName,
-          schoolAddress:
-            cleanString(
-              record.school_address
-            ) || null,
-
-          openingPeriod:
-            cleanString(
-              record.opening_period
-            ) || null,
-
+          schoolAddress,
+          openingPeriod,
           schoolTypeId,
           allowedSchoolLevelId,
           classToBeTaughtId,
@@ -338,27 +300,8 @@ export async function POST(request: Request) {
     );
 
     /*
-     * ----------------------------------------
-     * Validate lookup references
-     * ----------------------------------------
+     * Insert all records inside one transaction.
      */
-
-    for (
-      const record of preparedRecords
-    ) {
-      await validateLookupIds(
-        record.schoolTypeId,
-        record.allowedSchoolLevelId,
-        record.classToBeTaughtId
-      );
-    }
-
-    /*
-     * ----------------------------------------
-     * Insert records
-     * ----------------------------------------
-     */
-
     const result =
       await prisma.$transaction(
         async (transaction) => {
@@ -418,5 +361,7 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

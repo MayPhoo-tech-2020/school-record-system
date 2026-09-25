@@ -35,7 +35,7 @@ model ClassToBeTaught {
 
 model MOE {
   id                   Int      @id @default(autoincrement())
-  schoolName           String   @map("school_name")
+  schoolName           String?  @map("school_name")
   schoolAddress        String?  @map("school_address")
   openingPeriod        String?  @map("opening_period")
 
