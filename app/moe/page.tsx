@@ -19,11 +19,7 @@ export default function MoePage() {
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            marginBottom: "30px",
-          }}
-        >
+        <div style={{ marginBottom: "30px" }}>
           <Link
             href="/"
             style={{
@@ -154,8 +150,9 @@ export default function MoePage() {
                   lineHeight: "1.5",
                 }}
               >
-                Import school data from CSV, XLSX, or JSON files.
-                Excel files can contain multiple worksheets.
+                Import school data from CSV, XLSX, or JSON
+                files. Excel files can contain multiple
+                worksheets.
               </p>
 
               <div
@@ -215,8 +212,8 @@ export default function MoePage() {
                   lineHeight: "1.5",
                 }}
               >
-                View, search, and manage school records imported
-                from the Ministry of Education.
+                View, search, and manage school records
+                imported from the Ministry of Education.
               </p>
 
               <div
@@ -260,7 +257,8 @@ export default function MoePage() {
               color: "#64748b",
             }}
           >
-            Information currently recorded from the MOE source.
+            Information currently recorded from the MOE
+            source.
           </p>
 
           <div
@@ -304,4 +302,3 @@ function InfoBox({
     </div>
   );
 }
-

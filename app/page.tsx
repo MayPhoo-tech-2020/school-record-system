@@ -1,785 +1,304 @@
-"use client";
-
-import { ChangeEvent, useState } from "react";
-
-type SheetProgress = {
-  sheetIndex: number;
-  totalSheets: number;
-  sheetName: string;
-  sheetRecords: number;
-  currentRecord: number;
-  importedRecords: number;
-  totalRecords: number;
-  percent: number;
-};
-
-type SheetResult = {
-  sheetIndex: number;
-  sheetName: string;
-  sheetImported: number;
-};
+import Link from "next/link";
 
 export default function Home() {
-  const [file, setFile] =
-    useState<File | null>(null);
-
-  const [uploading, setUploading] =
-    useState(false);
-
-  const [status, setStatus] =
-    useState("");
-
-  const [percent, setPercent] =
-    useState(0);
-
-  const [totalSheets, setTotalSheets] =
-    useState(0);
-
-  const [currentSheet, setCurrentSheet] =
-    useState(0);
-
-  const [currentSheetName, setCurrentSheetName] =
-    useState("");
-
-  const [currentRecord, setCurrentRecord] =
-    useState(0);
-
-  const [currentSheetRecords, setCurrentSheetRecords] =
-    useState(0);
-
-  const [totalRecords, setTotalRecords] =
-    useState(0);
-
-  const [importedRecords, setImportedRecords] =
-    useState(0);
-
-  const [completedSheets, setCompletedSheets] =
-    useState<SheetResult[]>([]);
-
-  const [error, setError] =
-    useState("");
-
-  const [success, setSuccess] =
-    useState(false);
-
-  const handleFileChange = (
-    event: ChangeEvent<HTMLInputElement>
-  ) => {
-    const selectedFile =
-      event.target.files?.[0] ?? null;
-
-    setFile(selectedFile);
-
-    setError("");
-    setSuccess(false);
-    setStatus("");
-    setPercent(0);
-    setTotalSheets(0);
-    setCurrentSheet(0);
-    setCurrentSheetName("");
-    setCurrentRecord(0);
-    setCurrentSheetRecords(0);
-    setTotalRecords(0);
-    setImportedRecords(0);
-    setCompletedSheets([]);
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      setError(
-        "Please select a CSV, XLSX, or JSON file first."
-      );
-      return;
-    }
-
-    setUploading(true);
-    setError("");
-    setSuccess(false);
-    setStatus("Uploading and preparing file...");
-    setPercent(0);
-    setTotalSheets(0);
-    setCurrentSheet(0);
-    setCurrentSheetName("");
-    setCurrentRecord(0);
-    setCurrentSheetRecords(0);
-    setTotalRecords(0);
-    setImportedRecords(0);
-    setCompletedSheets([]);
-
-    try {
-      const formData =
-        new FormData();
-
-      formData.append(
-        "file",
-        file
-      );
-
-      const response =
-        await fetch(
-          "/api/moe/import",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-      if (!response.ok) {
-        const data =
-          await response.json();
-
-        throw new Error(
-          data.message ||
-            "Upload failed."
-        );
-      }
-
-      if (!response.body) {
-        throw new Error(
-          "The server did not return a progress stream."
-        );
-      }
-
-      const reader =
-        response.body.getReader();
-
-      const decoder =
-        new TextDecoder();
-
-      let buffer = "";
-
-      while (true) {
-        const {
-          value,
-          done,
-        } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        buffer +=
-          decoder.decode(
-            value,
-            {
-              stream: true,
-            }
-          );
-
-        const lines =
-          buffer.split("\n");
-
-        buffer =
-          lines.pop() ?? "";
-
-        for (
-          const line of lines
-        ) {
-          if (!line.trim()) {
-            continue;
-          }
-
-          const data =
-            JSON.parse(line);
-
-          /*
-           * Import started
-           */
-          if (
-            data.type === "start"
-          ) {
-            setTotalSheets(
-              data.totalSheets
-            );
-
-            setTotalRecords(
-              data.totalRecords
-            );
-
-            setStatus(
-              `Found ${data.totalSheets} sheet(s) and ${data.totalRecords.toLocaleString()} record(s).`
-            );
-          }
-
-          /*
-           * New sheet
-           */
-          else if (
-            data.type ===
-            "sheet_start"
-          ) {
-            setCurrentSheet(
-              data.sheetIndex
-            );
-
-            setTotalSheets(
-              data.totalSheets
-            );
-
-            setCurrentSheetName(
-              data.sheetName
-            );
-
-            setCurrentRecord(0);
-
-            setCurrentSheetRecords(
-              data.sheetRecords
-            );
-
-            setStatus(
-              `Importing sheet ${data.sheetIndex} of ${data.totalSheets}: ${data.sheetName}`
-            );
-          }
-
-          /*
-           * Individual record progress
-           */
-          else if (
-            data.type ===
-            "record_progress"
-          ) {
-            setCurrentSheet(
-              data.sheetIndex
-            );
-
-            setCurrentSheetName(
-              data.sheetName
-            );
-
-            setCurrentRecord(
-              data.currentRecord
-            );
-
-            setCurrentSheetRecords(
-              data.sheetRecords
-            );
-
-            setImportedRecords(
-              data.importedRecords
-            );
-
-            setTotalRecords(
-              data.totalRecords
-            );
-
-            setPercent(
-              data.percent
-            );
-
-            setStatus(
-              `Importing ${data.sheetName} — ${data.currentRecord.toLocaleString()} / ${data.sheetRecords.toLocaleString()} records`
-            );
-          }
-
-          /*
-           * Sheet completed
-           */
-          else if (
-            data.type ===
-            "sheet_complete"
-          ) {
-            setCompletedSheets(
-              (previous) => [
-                ...previous,
-                {
-                  sheetIndex:
-                    data.sheetIndex,
-                  sheetName:
-                    data.sheetName,
-                  sheetImported:
-                    data.sheetImported,
-                },
-              ]
-            );
-
-            setImportedRecords(
-              data.importedRecords
-            );
-
-            setStatus(
-              `✓ ${data.sheetName} completed — ${data.sheetImported.toLocaleString()} records imported`
-            );
-          }
-
-          /*
-           * All completed
-           */
-          else if (
-            data.type ===
-            "complete"
-          ) {
-            setPercent(100);
-
-            setImportedRecords(
-              data.importedRecords
-            );
-
-            setTotalRecords(
-              data.totalRecords
-            );
-
-            setTotalSheets(
-              data.totalSheets
-            );
-
-            setSuccess(true);
-
-            setStatus(
-              "Import completed successfully."
-            );
-          }
-
-          /*
-           * Server error
-           */
-          else if (
-            data.type ===
-            "error"
-          ) {
-            throw new Error(
-              data.message ||
-                "Import failed."
-            );
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Import failed."
-      );
-
-      setStatus(
-        "Import failed."
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const progressWidth =
-    `${percent}%`;
-
   return (
     <main
       style={{
         minHeight: "100vh",
         padding: "40px 20px",
         background: "#f5f7fa",
-        fontFamily:
-          "Arial, sans-serif",
+        fontFamily: "Arial, sans-serif",
       }}
     >
       <div
         style={{
-          maxWidth: "900px",
+          maxWidth: "1000px",
           margin: "0 auto",
         }}
       >
+        {/* Header */}
         <div
           style={{
             background: "#ffffff",
             borderRadius: "12px",
             padding: "30px",
-            boxShadow:
-              "0 2px 10px rgba(0,0,0,0.08)",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
           }}
         >
           <h1
             style={{
               marginTop: 0,
               marginBottom: "8px",
-              fontSize: "28px",
+              fontSize: "32px",
             }}
           >
-            MOE School Data Import
+            School Record System
           </h1>
 
           <p
             style={{
-              marginTop: 0,
+              margin: 0,
               color: "#666",
-            }}
-          >
-            Upload CSV, XLSX, or JSON
-            files. Excel files can
-            contain one or multiple
-            worksheets.
-          </p>
-
-          <div
-            style={{
-              marginTop: "25px",
-            }}
-          >
-            <input
-              type="file"
-              accept=".csv,.xlsx,.json"
-              onChange={
-                handleFileChange
-              }
-              disabled={uploading}
-            />
-          </div>
-
-          {file && (
-            <div
-              style={{
-                marginTop: "15px",
-                padding: "12px",
-                background: "#f1f3f5",
-                borderRadius: "8px",
-              }}
-            >
-              <strong>
-                Selected file:
-              </strong>{" "}
-              {file.name}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleUpload}
-            disabled={
-              !file || uploading
-            }
-            style={{
-              marginTop: "20px",
-              padding:
-                "12px 22px",
-              border: "none",
-              borderRadius: "8px",
-              background:
-                !file || uploading
-                  ? "#aaa"
-                  : "#111",
-              color: "#fff",
-              cursor:
-                !file || uploading
-                  ? "not-allowed"
-                  : "pointer",
               fontSize: "16px",
             }}
           >
-            {uploading
-              ? "Importing..."
-              : "Upload & Import"}
-          </button>
+            Manage and organize school information from
+            different data sources.
+          </p>
+        </div>
 
-          {(uploading ||
-            percent > 0 ||
-            success) && (
+        {/* Data Sources */}
+        <div style={{ marginTop: "25px" }}>
+          <h2
+            style={{
+              fontSize: "22px",
+              marginBottom: "15px",
+            }}
+          >
+            Data Sources
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {/* MOE */}
             <div
               style={{
-                marginTop: "30px",
+                background: "#ffffff",
+                borderRadius: "12px",
+                padding: "22px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
               }}
             >
               <div
                 style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
+                  fontSize: "14px",
+                  color: "#64748b",
                   marginBottom: "8px",
                 }}
               >
-                <strong>
-                  Import Progress
-                </strong>
-
-                <strong>
-                  {percent}%
-                </strong>
+                SOURCE 01
               </div>
 
-              <div
+              <h3
                 style={{
-                  width: "100%",
-                  height: "18px",
-                  background:
-                    "#e5e7eb",
-                  borderRadius: "999px",
-                  overflow: "hidden",
+                  margin: "0 0 8px 0",
+                  fontSize: "22px",
                 }}
               >
-                <div
-                  style={{
-                    width:
-                      progressWidth,
-                    height: "100%",
-                    background:
-                      "#2563eb",
-                    transition:
-                      "width 0.2s ease",
-                  }}
-                />
-              </div>
+                Ministry of Education
+              </h3>
 
               <p
                 style={{
-                  marginTop: "12px",
-                  color: "#444",
+                  color: "#666",
+                  lineHeight: "1.5",
+                  marginBottom: "18px",
                 }}
               >
-                {status}
+                Manage school data provided by the Ministry
+                of Education.
               </p>
-            </div>
-          )}
 
-          {(totalSheets > 0 ||
-            totalRecords > 0) && (
+              <Link
+                href="/moe"
+                style={{
+                  display: "inline-block",
+                  padding: "10px 16px",
+                  background: "#111",
+                  color: "#fff",
+                  textDecoration: "none",
+                  borderRadius: "7px",
+                  fontSize: "14px",
+                }}
+              >
+                Open MOE
+              </Link>
+            </div>
+
+            {/* Google Maps */}
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: "12px",
-                marginTop: "25px",
+                background: "#ffffff",
+                borderRadius: "12px",
+                padding: "22px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
               }}
             >
-              <InfoBox
-                label="Total Sheets"
-                value={
-                  totalSheets
-                }
-              />
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "#64748b",
+                  marginBottom: "8px",
+                }}
+              >
+                SOURCE 02
+              </div>
 
-              <InfoBox
-                label="Current Sheet"
-                value={
-                  totalSheets > 0
-                    ? `${currentSheet} / ${totalSheets}`
-                    : "-"
-                }
-              />
+              <h3
+                style={{
+                  margin: "0 0 8px 0",
+                  fontSize: "22px",
+                }}
+              >
+                Google Maps
+              </h3>
 
-              <InfoBox
-                label="Total Records"
-                value={totalRecords.toLocaleString()}
-              />
+              <p
+                style={{
+                  color: "#666",
+                  lineHeight: "1.5",
+                  marginBottom: "18px",
+                }}
+              >
+                Collect and manage school information
+                from Google Maps.
+              </p>
 
-              <InfoBox
-                label="Imported"
-                value={importedRecords.toLocaleString()}
-              />
+              <button
+                type="button"
+                disabled
+                style={{
+                  padding: "10px 16px",
+                  background: "#e5e7eb",
+                  color: "#6b7280",
+                  border: "none",
+                  borderRadius: "7px",
+                  fontSize: "14px",
+                  cursor: "not-allowed",
+                }}
+              >
+                Coming Soon
+              </button>
             </div>
-          )}
 
-          {currentSheetName && (
+            {/* Directories */}
             <div
               style={{
-                marginTop: "25px",
-                padding: "18px",
+                background: "#ffffff",
+                borderRadius: "12px",
+                padding: "22px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "14px",
+                  color: "#64748b",
+                  marginBottom: "8px",
+                }}
+              >
+                SOURCE 03
+              </div>
+
+              <h3
+                style={{
+                  margin: "0 0 8px 0",
+                  fontSize: "22px",
+                }}
+              >
+                Directories
+              </h3>
+
+              <p
+                style={{
+                  color: "#666",
+                  lineHeight: "1.5",
+                  marginBottom: "18px",
+                }}
+              >
+                Manage school information from Yangon
+                Directory and Mandalay Directory.
+              </p>
+
+              <button
+                type="button"
+                disabled
+                style={{
+                  padding: "10px 16px",
+                  background: "#e5e7eb",
+                  color: "#6b7280",
+                  border: "none",
+                  borderRadius: "7px",
+                  fontSize: "14px",
+                  cursor: "not-allowed",
+                }}
+              >
+                Coming Soon
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ marginTop: "35px" }}>
+          <h2
+            style={{
+              fontSize: "22px",
+              marginBottom: "15px",
+            }}
+          >
+            Quick Actions
+          </h2>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <Link
+              href="/moe"
+              style={{
+                padding: "12px 18px",
+                background: "#ffffff",
+                color: "#111",
+                textDecoration: "none",
                 borderRadius: "8px",
-                background:
-                  "#eff6ff",
+                border: "1px solid #d1d5db",
               }}
             >
-              <strong>
-                Current Sheet
-              </strong>
+              MOE Dashboard
+            </Link>
 
-              <div
-                style={{
-                  marginTop: "6px",
-                  fontSize: "18px",
-                }}
-              >
-                {currentSheetName}
-              </div>
-
-              <div
-                style={{
-                  marginTop: "6px",
-                  color: "#555",
-                }}
-              >
-                Records:{" "}
-                {currentRecord.toLocaleString()}{" "}
-                /{" "}
-                {currentSheetRecords.toLocaleString()}
-              </div>
-            </div>
-          )}
-
-          {completedSheets.length >
-            0 && (
-            <div
+            <Link
+              href="/moe/import"
               style={{
-                marginTop: "25px",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "20px",
-                }}
-              >
-                Sheet Progress
-              </h2>
-
-              <div>
-                {completedSheets.map(
-                  (sheet) => (
-                    <div
-                      key={
-                        sheet.sheetIndex
-                      }
-                      style={{
-                        display: "flex",
-                        justifyContent:
-                          "space-between",
-                        alignItems:
-                          "center",
-                        padding:
-                          "12px 15px",
-                        marginBottom:
-                          "8px",
-                        borderRadius:
-                          "8px",
-                        background:
-                          "#f0fdf4",
-                        border:
-                          "1px solid #bbf7d0",
-                      }}
-                    >
-                      <span>
-                        ✓{" "}
-                        {sheet.sheetName}
-                      </span>
-
-                      <strong>
-                        {sheet.sheetImported.toLocaleString()}{" "}
-                        records
-                      </strong>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
-          {success && (
-            <div
-              style={{
-                marginTop: "25px",
-                padding: "18px",
+                padding: "12px 18px",
+                background: "#111",
+                color: "#fff",
+                textDecoration: "none",
                 borderRadius: "8px",
-                background:
-                  "#f0fdf4",
-                border:
-                  "1px solid #86efac",
-                color: "#166534",
               }}
             >
-              <strong>
-                ✓ Import completed
-                successfully
-              </strong>
+              Import MOE Data
+            </Link>
 
-              <div
-                style={{
-                  marginTop: "8px",
-                }}
-              >
-                Sheets processed:{" "}
-                {totalSheets}
-              </div>
-
-              <div>
-                Total records:{" "}
-                {totalRecords.toLocaleString()}
-              </div>
-
-              <div>
-                Successfully imported:{" "}
-                {importedRecords.toLocaleString()}
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div
+            <Link
+              href="/moe/schools"
               style={{
-                marginTop: "25px",
-                padding: "18px",
+                padding: "12px 18px",
+                background: "#ffffff",
+                color: "#111",
+                textDecoration: "none",
                 borderRadius: "8px",
-                background:
-                  "#fef2f2",
-                border:
-                  "1px solid #fca5a5",
-                color: "#991b1b",
+                border: "1px solid #d1d5db",
               }}
             >
-              <strong>
-                ✕ Import failed
-              </strong>
-
-              <div
-                style={{
-                  marginTop: "8px",
-                }}
-              >
-                {error}
-              </div>
-
-              {importedRecords >
-                0 && (
-                <div
-                  style={{
-                    marginTop: "8px",
-                  }}
-                >
-                  Records imported before
-                  failure:{" "}
-                  {importedRecords.toLocaleString()}
-                </div>
-              )}
-            </div>
-          )}
+              View MOE Schools
+            </Link>
+          </div>
         </div>
       </div>
     </main>
-  );
-}
-
-function InfoBox({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "8px",
-        background: "#f8fafc",
-        border:
-          "1px solid #e2e8f0",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "13px",
-          color: "#64748b",
-          marginBottom: "5px",
-        }}
-      >
-        {label}
-      </div>
-
-      <div
-        style={{
-          fontSize: "22px",
-          fontWeight: "bold",
-        }}
-      >
-        {value}
-      </div>
-    </div>
   );
 }
