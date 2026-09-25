@@ -13,6 +13,11 @@ const prisma = new PrismaClient({
 
 type ImportRecord = Record<string, unknown>;
 
+type SheetData = {
+  name: string;
+  records: ImportRecord[];
+};
+
 function normalizeHeader(value: string): string {
   return value
     .replace(/^\uFEFF/, "")
@@ -135,49 +140,283 @@ function parseJSON(text: string): ImportRecord[] {
   );
 }
 
+/*
+ * Parse every worksheet dynamically.
+ *
+ * 1 sheet  -> 1 sheet
+ * 2 sheets -> 2 sheets
+ * 4 sheets -> 4 sheets
+ * etc.
+ */
 function parseXLSX(
   buffer: ArrayBuffer
-): ImportRecord[] {
+): SheetData[] {
   const workbook = XLSX.read(buffer, {
     type: "array",
   });
 
   if (workbook.SheetNames.length === 0) {
     throw new Error(
-      "Excel file does not contain a worksheet."
+      "Excel file does not contain any worksheets."
     );
   }
 
-  const sheetName = workbook.SheetNames[0];
+  const sheets: SheetData[] = [];
 
-  const worksheet = workbook.Sheets[sheetName];
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet =
+      workbook.Sheets[sheetName];
 
-  const rows =
-    XLSX.utils.sheet_to_json<ImportRecord>(
-      worksheet,
-      {
-        defval: "",
+    if (!worksheet) {
+      continue;
+    }
+
+    const rows =
+      XLSX.utils.sheet_to_json<ImportRecord>(
+        worksheet,
+        {
+          defval: "",
+        }
+      );
+
+    if (rows.length === 0) {
+      continue;
+    }
+
+    const records: ImportRecord[] = rows.map(
+      (row) => {
+        const record: ImportRecord = {};
+
+        Object.entries(row).forEach(
+          ([key, value]) => {
+            record[normalizeHeader(key)] =
+              value;
+          }
+        );
+
+        return record;
       }
     );
 
-  return rows.map((row) => {
-    const record: ImportRecord = {};
+    sheets.push({
+      name: sheetName,
+      records,
+    });
+  }
 
-    Object.entries(row).forEach(
-      ([key, value]) => {
-        record[normalizeHeader(key)] = value;
-      }
+  return sheets;
+}
+
+function prepareRecord(
+  record: ImportRecord
+) {
+  const schoolName = cleanString(
+    record.school_name
+  );
+
+  const schoolAddress =
+    cleanString(
+      record.school_address
+    ) || null;
+
+  const openingPeriod =
+    cleanString(
+      record.opening_period
+    ) || null;
+
+  const schoolTypeId =
+    parseInteger(
+      record.school_type_id
     );
 
-    return record;
+  const allowedSchoolLevelId =
+    parseInteger(
+      record.allowed_school_level_id
+    );
+
+  const classToBeTaughtId =
+    parseInteger(
+      record.class_to_be_taught_id
+    );
+
+  return {
+    schoolName,
+    schoolAddress,
+    openingPeriod,
+    schoolTypeId,
+    allowedSchoolLevelId,
+    classToBeTaughtId,
+  };
+}
+
+function createProgressStream(
+  sheets: SheetData[]
+): ReadableStream<Uint8Array> {
+  const encoder =
+    new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (data: unknown) => {
+        controller.enqueue(
+          encoder.encode(
+            JSON.stringify(data) + "\n"
+          )
+        );
+      };
+
+      let totalRecords = 0;
+
+      sheets.forEach((sheet) => {
+        totalRecords +=
+          sheet.records.length;
+      });
+
+      let importedRecords = 0;
+
+      send({
+        type: "start",
+        totalSheets: sheets.length,
+        totalRecords,
+      });
+
+      try {
+        for (
+          let sheetIndex = 0;
+          sheetIndex < sheets.length;
+          sheetIndex++
+        ) {
+          const sheet =
+            sheets[sheetIndex];
+
+          send({
+            type: "sheet_start",
+            sheetIndex: sheetIndex + 1,
+            totalSheets: sheets.length,
+            sheetName: sheet.name,
+            sheetRecords:
+              sheet.records.length,
+          });
+
+          let sheetImported = 0;
+
+          for (
+            let recordIndex = 0;
+            recordIndex <
+            sheet.records.length;
+            recordIndex++
+          ) {
+            const record =
+              sheet.records[recordIndex];
+
+            const prepared =
+              prepareRecord(record);
+
+            await prisma.mOE.create({
+              data: {
+                schoolName:
+                  prepared.schoolName,
+
+                schoolAddress:
+                  prepared.schoolAddress,
+
+                openingPeriod:
+                  prepared.openingPeriod,
+
+                schoolTypeId:
+                  prepared.schoolTypeId,
+
+                allowedSchoolLevelId:
+                  prepared.allowedSchoolLevelId,
+
+                classToBeTaughtId:
+                  prepared.classToBeTaughtId,
+              },
+            });
+
+            importedRecords++;
+            sheetImported++;
+
+            const percent =
+              totalRecords > 0
+                ? Math.round(
+                    (importedRecords /
+                      totalRecords) *
+                      100
+                  )
+                : 100;
+
+            send({
+              type: "record_progress",
+              sheetIndex:
+                sheetIndex + 1,
+              totalSheets:
+                sheets.length,
+              sheetName: sheet.name,
+              currentRecord:
+                recordIndex + 1,
+              sheetRecords:
+                sheet.records.length,
+              importedRecords,
+              totalRecords,
+              percent,
+            });
+          }
+
+          send({
+            type: "sheet_complete",
+            sheetIndex:
+              sheetIndex + 1,
+            totalSheets:
+              sheets.length,
+            sheetName: sheet.name,
+            sheetImported,
+            importedRecords,
+            totalRecords,
+          });
+        }
+
+        send({
+          type: "complete",
+          totalSheets: sheets.length,
+          totalRecords,
+          importedRecords,
+        });
+
+        controller.close();
+      } catch (error) {
+        console.error(
+          "MOE import stream error:",
+          error
+        );
+
+        send({
+          type: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to import MOE data.",
+          importedRecords,
+          totalRecords,
+        });
+
+        controller.close();
+      } finally {
+        await prisma.$disconnect();
+      }
+    },
   });
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   try {
-    const formData = await request.formData();
+    const formData =
+      await request.formData();
 
-    const file = formData.get("file");
+    const file =
+      formData.get("file");
 
     if (!(file instanceof File)) {
       return NextResponse.json(
@@ -190,39 +429,66 @@ export async function POST(request: Request) {
       );
     }
 
-    const fileName = file.name.toLowerCase();
+    const fileName =
+      file.name.toLowerCase();
 
-    let records: ImportRecord[] = [];
+    let sheets: SheetData[] = [];
 
     /*
      * CSV
      */
     if (fileName.endsWith(".csv")) {
-      const text = await file.text();
+      const text =
+        await file.text();
 
-      records = parseCSV(text);
+      const records =
+        parseCSV(text);
+
+      sheets = [
+        {
+          name: "CSV",
+          records,
+        },
+      ];
     }
 
     /*
      * JSON
      */
-    else if (fileName.endsWith(".json")) {
-      const text = await file.text();
+    else if (
+      fileName.endsWith(".json")
+    ) {
+      const text =
+        await file.text();
 
-      records = parseJSON(text);
+      const records =
+        parseJSON(text);
+
+      sheets = [
+        {
+          name: "JSON",
+          records,
+        },
+      ];
     }
 
     /*
-     * Excel
+     * XLSX
+     *
+     * All worksheets are processed.
      */
-    else if (fileName.endsWith(".xlsx")) {
-      const buffer = await file.arrayBuffer();
+    else if (
+      fileName.endsWith(".xlsx")
+    ) {
+      const buffer =
+        await file.arrayBuffer();
 
-      records = parseXLSX(buffer);
+      sheets =
+        parseXLSX(buffer);
     }
 
     /*
-     * Unsupported file
+     * Unsupported
      */
     else {
       return NextResponse.json(
@@ -235,7 +501,25 @@ export async function POST(request: Request) {
       );
     }
 
-    if (records.length === 0) {
+    if (sheets.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "The uploaded file contains no data.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const totalRecords =
+      sheets.reduce(
+        (total, sheet) =>
+          total + sheet.records.length,
+        0
+      );
+
+    if (totalRecords === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -246,105 +530,19 @@ export async function POST(request: Request) {
       );
     }
 
-    /*
-     * Prepare records.
-     *
-     * No data-quality validation is performed here.
-     *
-     * schoolName is required by Prisma,
-     * so empty values become an empty string.
-     *
-     * Other optional fields become NULL.
-     */
-    const preparedRecords = records.map(
-      (record) => {
-        const schoolName =
-          cleanString(
-            record.school_name
-          );
-
-        const schoolAddress =
-          cleanString(
-            record.school_address
-          ) || null;
-
-        const openingPeriod =
-          cleanString(
-            record.opening_period
-          ) || null;
-
-        const schoolTypeId =
-          parseInteger(
-            record.school_type_id
-          );
-
-        const allowedSchoolLevelId =
-          parseInteger(
-            record.allowed_school_level_id
-          );
-
-        const classToBeTaughtId =
-          parseInteger(
-            record.class_to_be_taught_id
-          );
-
-        return {
-          schoolName,
-          schoolAddress,
-          openingPeriod,
-          schoolTypeId,
-          allowedSchoolLevelId,
-          classToBeTaughtId,
-        };
+    return new Response(
+      createProgressStream(sheets),
+      {
+        status: 200,
+        headers: {
+          "Content-Type":
+            "application/x-ndjson; charset=utf-8",
+          "Cache-Control":
+            "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
       }
     );
-
-    /*
-     * Insert all records inside one transaction.
-     */
-    const result =
-      await prisma.$transaction(
-        async (transaction) => {
-          let imported = 0;
-
-          for (
-            const record of preparedRecords
-          ) {
-            await transaction.mOE.create({
-              data: {
-                schoolName:
-                  record.schoolName,
-
-                schoolAddress:
-                  record.schoolAddress,
-
-                openingPeriod:
-                  record.openingPeriod,
-
-                schoolTypeId:
-                  record.schoolTypeId,
-
-                allowedSchoolLevelId:
-                  record.allowedSchoolLevelId,
-
-                classToBeTaughtId:
-                  record.classToBeTaughtId,
-              },
-            });
-
-            imported++;
-          }
-
-          return imported;
-        }
-      );
-
-    return NextResponse.json({
-      success: true,
-      message:
-        "MOE data imported successfully.",
-      count: result,
-    });
   } catch (error) {
     console.error(
       "POST /api/moe/import error:",
@@ -361,7 +559,5 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

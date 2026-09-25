@@ -1,821 +1,785 @@
 "use client";
 
-import {
-  ChangeEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { ChangeEvent, useState } from "react";
 
-type MOE = {
-  id: number;
-  schoolName: string | null;
-  schoolAddress: string | null;
-  openingPeriod: string | null;
-  schoolTypeId: number | null;
-  allowedSchoolLevelId: number | null;
-  classToBeTaughtId: number | null;
-  createdAt: string;
-  updatedAt: string;
+type SheetProgress = {
+  sheetIndex: number;
+  totalSheets: number;
+  sheetName: string;
+  sheetRecords: number;
+  currentRecord: number;
+  importedRecords: number;
+  totalRecords: number;
+  percent: number;
 };
 
-type UploadStage =
-  | "idle"
-  | "uploading"
-  | "processing"
-  | "success"
-  | "error";
-
-const ALLOWED_EXTENSIONS = [
-  ".csv",
-  ".xlsx",
-  ".json",
-];
+type SheetResult = {
+  sheetIndex: number;
+  sheetName: string;
+  sheetImported: number;
+};
 
 export default function Home() {
-  const [moes, setMoes] = useState<MOE[]>([]);
-
   const [file, setFile] =
     useState<File | null>(null);
-
-  const [loading, setLoading] =
-    useState(true);
 
   const [uploading, setUploading] =
     useState(false);
 
-  const [uploadProgress, setUploadProgress] =
-    useState(0);
-
-  const [uploadStage, setUploadStage] =
-    useState<UploadStage>("idle");
-
-  const [message, setMessage] =
+  const [status, setStatus] =
     useState("");
 
-  const fileInputRef =
-    useRef<HTMLInputElement | null>(null);
+  const [percent, setPercent] =
+    useState(0);
 
-  /*
-   * Load MOE records
-   */
-  const fetchMOE = async () => {
-    try {
-      setLoading(true);
+  const [totalSheets, setTotalSheets] =
+    useState(0);
 
-      const response = await fetch(
-        "/api/moe",
-        {
-          cache: "no-store",
-        }
-      );
+  const [currentSheet, setCurrentSheet] =
+    useState(0);
 
-      const result =
-        await response.json();
+  const [currentSheetName, setCurrentSheetName] =
+    useState("");
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
-        setMessage(
-          result.message ||
-            "Failed to load MOE data."
-        );
+  const [currentRecord, setCurrentRecord] =
+    useState(0);
 
-        return;
-      }
+  const [currentSheetRecords, setCurrentSheetRecords] =
+    useState(0);
 
-      setMoes(result.data);
-    } catch (error) {
-      console.error(error);
+  const [totalRecords, setTotalRecords] =
+    useState(0);
 
-      setMessage(
-        "Failed to load MOE records."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [importedRecords, setImportedRecords] =
+    useState(0);
 
-  useEffect(() => {
-    fetchMOE();
-  }, []);
+  const [completedSheets, setCompletedSheets] =
+    useState<SheetResult[]>([]);
 
-  /*
-   * Check supported file
-   */
-  const isSupportedFile = (
-    fileName: string
-  ) => {
-    const lowerName =
-      fileName.toLowerCase();
+  const [error, setError] =
+    useState("");
 
-    return ALLOWED_EXTENSIONS.some(
-      (extension) =>
-        lowerName.endsWith(extension)
-    );
-  };
+  const [success, setSuccess] =
+    useState(false);
 
-  /*
-   * Get file type
-   */
-  const getFileType = (
-    fileName: string
-  ) => {
-    const lowerName =
-      fileName.toLowerCase();
-
-    if (
-      lowerName.endsWith(".csv")
-    ) {
-      return "CSV";
-    }
-
-    if (
-      lowerName.endsWith(".xlsx")
-    ) {
-      return "Excel";
-    }
-
-    if (
-      lowerName.endsWith(".json")
-    ) {
-      return "JSON";
-    }
-
-    return "File";
-  };
-
-  /*
-   * Select file
-   */
   const handleFileChange = (
     event: ChangeEvent<HTMLInputElement>
   ) => {
     const selectedFile =
-      event.target.files?.[0] ||
-      null;
-
-    if (!selectedFile) {
-      setFile(null);
-      return;
-    }
-
-    if (
-      !isSupportedFile(
-        selectedFile.name
-      )
-    ) {
-      setMessage(
-        "Unsupported file. Please select CSV, XLSX, or JSON."
-      );
-
-      setFile(null);
-
-      event.target.value = "";
-
-      return;
-    }
+      event.target.files?.[0] ?? null;
 
     setFile(selectedFile);
 
-    setMessage("");
-
-    setUploadProgress(0);
-
-    setUploadStage("idle");
+    setError("");
+    setSuccess(false);
+    setStatus("");
+    setPercent(0);
+    setTotalSheets(0);
+    setCurrentSheet(0);
+    setCurrentSheetName("");
+    setCurrentRecord(0);
+    setCurrentSheetRecords(0);
+    setTotalRecords(0);
+    setImportedRecords(0);
+    setCompletedSheets([]);
   };
 
-  /*
-   * Reset selected file
-   */
-  const resetFile = () => {
-    setFile(null);
-
-    setUploadProgress(0);
-
-    setUploadStage("idle");
-
-    setMessage("");
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value =
-        "";
-    }
-  };
-
-  /*
-   * Upload file
-   */
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) {
-      setMessage(
+      setError(
         "Please select a CSV, XLSX, or JSON file first."
       );
-
       return;
     }
 
     setUploading(true);
+    setError("");
+    setSuccess(false);
+    setStatus("Uploading and preparing file...");
+    setPercent(0);
+    setTotalSheets(0);
+    setCurrentSheet(0);
+    setCurrentSheetName("");
+    setCurrentRecord(0);
+    setCurrentSheetRecords(0);
+    setTotalRecords(0);
+    setImportedRecords(0);
+    setCompletedSheets([]);
 
-    setUploadProgress(0);
+    try {
+      const formData =
+        new FormData();
 
-    setUploadStage("uploading");
+      formData.append(
+        "file",
+        file
+      );
 
-    setMessage("");
-
-    const formData =
-      new FormData();
-
-    formData.append(
-      "file",
-      file
-    );
-
-    const xhr =
-      new XMLHttpRequest();
-
-    xhr.open(
-      "POST",
-      "/api/moe/import"
-    );
-
-    /*
-     * Browser upload progress
-     */
-    xhr.upload.addEventListener(
-      "progress",
-      (event) => {
-        if (!event.lengthComputable) {
-          return;
-        }
-
-        const percentage =
-          Math.round(
-            (event.loaded /
-              event.total) *
-              100
-          );
-
-        setUploadProgress(
-          percentage
+      const response =
+        await fetch(
+          "/api/moe/import",
+          {
+            method: "POST",
+            body: formData,
+          }
         );
 
-        /*
-         * 100% means browser
-         * finished sending the file.
-         *
-         * Server may still be
-         * inserting database records.
-         */
-        if (percentage >= 100) {
-          setUploadStage(
-            "processing"
-          );
-        }
+      if (!response.ok) {
+        const data =
+          await response.json();
+
+        throw new Error(
+          data.message ||
+            "Upload failed."
+        );
       }
-    );
 
-    /*
-     * Server response
-     */
-    xhr.addEventListener(
-      "load",
-      async () => {
-        try {
-          let result;
+      if (!response.body) {
+        throw new Error(
+          "The server did not return a progress stream."
+        );
+      }
 
-          try {
-            result = JSON.parse(
-              xhr.responseText
+      const reader =
+        response.body.getReader();
+
+      const decoder =
+        new TextDecoder();
+
+      let buffer = "";
+
+      while (true) {
+        const {
+          value,
+          done,
+        } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer +=
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            }
+          );
+
+        const lines =
+          buffer.split("\n");
+
+        buffer =
+          lines.pop() ?? "";
+
+        for (
+          const line of lines
+        ) {
+          if (!line.trim()) {
+            continue;
+          }
+
+          const data =
+            JSON.parse(line);
+
+          /*
+           * Import started
+           */
+          if (
+            data.type === "start"
+          ) {
+            setTotalSheets(
+              data.totalSheets
             );
-          } catch {
-            throw new Error(
-              "Invalid server response."
+
+            setTotalRecords(
+              data.totalRecords
+            );
+
+            setStatus(
+              `Found ${data.totalSheets} sheet(s) and ${data.totalRecords.toLocaleString()} record(s).`
             );
           }
 
-          if (
-            xhr.status < 200 ||
-            xhr.status >= 300 ||
-            !result.success
+          /*
+           * New sheet
+           */
+          else if (
+            data.type ===
+            "sheet_start"
           ) {
-            setUploadStage(
-              "error"
+            setCurrentSheet(
+              data.sheetIndex
             );
 
-            setMessage(
-              result.message ||
+            setTotalSheets(
+              data.totalSheets
+            );
+
+            setCurrentSheetName(
+              data.sheetName
+            );
+
+            setCurrentRecord(0);
+
+            setCurrentSheetRecords(
+              data.sheetRecords
+            );
+
+            setStatus(
+              `Importing sheet ${data.sheetIndex} of ${data.totalSheets}: ${data.sheetName}`
+            );
+          }
+
+          /*
+           * Individual record progress
+           */
+          else if (
+            data.type ===
+            "record_progress"
+          ) {
+            setCurrentSheet(
+              data.sheetIndex
+            );
+
+            setCurrentSheetName(
+              data.sheetName
+            );
+
+            setCurrentRecord(
+              data.currentRecord
+            );
+
+            setCurrentSheetRecords(
+              data.sheetRecords
+            );
+
+            setImportedRecords(
+              data.importedRecords
+            );
+
+            setTotalRecords(
+              data.totalRecords
+            );
+
+            setPercent(
+              data.percent
+            );
+
+            setStatus(
+              `Importing ${data.sheetName} — ${data.currentRecord.toLocaleString()} / ${data.sheetRecords.toLocaleString()} records`
+            );
+          }
+
+          /*
+           * Sheet completed
+           */
+          else if (
+            data.type ===
+            "sheet_complete"
+          ) {
+            setCompletedSheets(
+              (previous) => [
+                ...previous,
+                {
+                  sheetIndex:
+                    data.sheetIndex,
+                  sheetName:
+                    data.sheetName,
+                  sheetImported:
+                    data.sheetImported,
+                },
+              ]
+            );
+
+            setImportedRecords(
+              data.importedRecords
+            );
+
+            setStatus(
+              `✓ ${data.sheetName} completed — ${data.sheetImported.toLocaleString()} records imported`
+            );
+          }
+
+          /*
+           * All completed
+           */
+          else if (
+            data.type ===
+            "complete"
+          ) {
+            setPercent(100);
+
+            setImportedRecords(
+              data.importedRecords
+            );
+
+            setTotalRecords(
+              data.totalRecords
+            );
+
+            setTotalSheets(
+              data.totalSheets
+            );
+
+            setSuccess(true);
+
+            setStatus(
+              "Import completed successfully."
+            );
+          }
+
+          /*
+           * Server error
+           */
+          else if (
+            data.type ===
+            "error"
+          ) {
+            throw new Error(
+              data.message ||
                 "Import failed."
             );
-
-            return;
           }
-
-          setUploadProgress(100);
-
-          setUploadStage(
-            "success"
-          );
-
-          setMessage(
-            `Successfully imported ${result.count} school(s).`
-          );
-
-          resetFile();
-
-          await fetchMOE();
-        } catch (error) {
-          console.error(error);
-
-          setUploadStage(
-            "error"
-          );
-
-          setMessage(
-            error instanceof Error
-              ? error.message
-              : "Something went wrong."
-          );
-        } finally {
-          setUploading(false);
         }
       }
-    );
+    } catch (err) {
+      console.error(err);
 
-    /*
-     * Network error
-     */
-    xhr.addEventListener(
-      "error",
-      () => {
-        setUploading(false);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Import failed."
+      );
 
-        setUploadStage(
-          "error"
-        );
-
-        setMessage(
-          "Network error. The file could not be uploaded."
-        );
-      }
-    );
-
-    /*
-     * Upload cancelled
-     */
-    xhr.addEventListener(
-      "abort",
-      () => {
-        setUploading(false);
-
-        setUploadStage(
-          "error"
-        );
-
-        setMessage(
-          "Upload was cancelled."
-        );
-      }
-    );
-
-    xhr.send(formData);
+      setStatus(
+        "Import failed."
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
-  /*
-   * Format date
-   */
-  const formatDate = (
-    date: string
-  ) => {
-    return new Date(
-      date
-    ).toLocaleString();
-  };
+  const progressWidth =
+    `${percent}%`;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-
-      {/* ========================================
-          UPLOAD LOADING OVERLAY
-          ======================================== */}
-
-      {uploading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
-
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-
-            <div className="flex flex-col items-center text-center">
-
-              {/* Spinner */}
-              <div className="mb-5 h-14 w-14 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
-
-              {/* Title */}
-              <h2 className="text-xl font-bold text-gray-900">
-
-                {uploadStage ===
-                "processing"
-                  ? "Processing Data"
-                  : "Uploading File"}
-
-              </h2>
-
-              {/* Description */}
-              <p className="mt-2 text-sm text-gray-500">
-
-                {uploadStage ===
-                "processing"
-                  ? "Your file has been uploaded. We are saving the records to the database..."
-                  : `Uploading ${getFileType(
-                      file?.name || ""
-                    )} file...`}
-
-              </p>
-
-              {/* Progress */}
-              <div className="mt-6 w-full">
-
-                <div className="mb-2 flex items-center justify-between text-sm">
-
-                  <span className="font-medium text-gray-700">
-                    {uploadStage ===
-                    "processing"
-                      ? "Processing"
-                      : "Upload progress"}
-                  </span>
-
-                  <span className="font-semibold text-blue-600">
-                    {uploadProgress}%
-                  </span>
-
-                </div>
-
-                <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
-
-                  <div
-                    className="h-full rounded-full bg-blue-600 transition-all duration-300"
-                    style={{
-                      width: `${uploadProgress}%`,
-                    }}
-                  />
-
-                </div>
-
-              </div>
-
-              {/* Warning */}
-              <p className="mt-5 text-xs text-gray-400">
-                Please do not close or refresh this page.
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* ========================================
-          MAIN CONTENT
-          ======================================== */}
-
-      <div className="mx-auto max-w-[1800px]">
-
-        {/* ======================================
-            HEADER
-            ====================================== */}
-
-        <div className="mb-6">
-
-          <h1 className="text-3xl font-bold text-gray-900">
-            School Record System
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: "40px 20px",
+        background: "#f5f7fa",
+        fontFamily:
+          "Arial, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: "12px",
+            padding: "30px",
+            boxShadow:
+              "0 2px 10px rgba(0,0,0,0.08)",
+          }}
+        >
+          <h1
+            style={{
+              marginTop: 0,
+              marginBottom: "8px",
+              fontSize: "28px",
+            }}
+          >
+            MOE School Data Import
           </h1>
 
-          <p className="mt-1 text-gray-600">
-            MOE school records management system.
+          <p
+            style={{
+              marginTop: 0,
+              color: "#666",
+            }}
+          >
+            Upload CSV, XLSX, or JSON
+            files. Excel files can
+            contain one or multiple
+            worksheets.
           </p>
 
-        </div>
-
-        {/* ======================================
-            IMPORT SECTION
-            ====================================== */}
-
-        <section className="mb-6 rounded-xl bg-white p-6 shadow">
-
-          <div className="mb-5">
-
-            <h2 className="text-xl font-semibold text-gray-900">
-              Import MOE Data
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Upload school records using CSV, Excel, or JSON.
-            </p>
-
+          <div
+            style={{
+              marginTop: "25px",
+            }}
+          >
+            <input
+              type="file"
+              accept=".csv,.xlsx,.json"
+              onChange={
+                handleFileChange
+              }
+              disabled={uploading}
+            />
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-
-            {/* File input */}
-            <div className="flex-1">
-
-              <label
-                htmlFor="moe-file"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Select File
-              </label>
-
-              <input
-                ref={fileInputRef}
-                id="moe-file"
-                type="file"
-                accept=".csv,.xlsx,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={
-                  handleFileChange
-                }
-                disabled={uploading}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100"
-              />
-
-              {/* Selected file */}
-              {file && (
-                <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
-
-                  <div>
-
-                    <p className="text-sm font-medium text-gray-800">
-                      {file.name}
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-500">
-
-                      {getFileType(
-                        file.name
-                      )}
-
-                      {" • "}
-
-                      {(
-                        file.size /
-                        1024
-                      ).toFixed(1)}
-
-                      {" KB"}
-
-                    </p>
-
-                  </div>
-
-                  {!uploading && (
-                    <button
-                      type="button"
-                      onClick={
-                        resetFile
-                      }
-                      className="text-sm font-medium text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  )}
-
-                </div>
-              )}
-
-            </div>
-
-            {/* Upload button */}
-            <button
-              type="button"
-              onClick={
-                handleUpload
-              }
-              disabled={
-                !file ||
-                uploading
-              }
-              className="rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          {file && (
+            <div
+              style={{
+                marginTop: "15px",
+                padding: "12px",
+                background: "#f1f3f5",
+                borderRadius: "8px",
+              }}
             >
-              {uploading
-                ? "Processing..."
-                : "Upload File"}
-            </button>
-
-          </div>
-
-          {/* Supported formats */}
-          <div className="mt-4 rounded-lg bg-blue-50 px-4 py-3">
-
-            <p className="text-sm text-blue-700">
-              Supported formats:{" "}
               <strong>
-                CSV, XLSX, JSON
-              </strong>
-            </p>
-
-          </div>
-
-          {/* Message */}
-          {message &&
-            !uploading && (
-              <div
-                className={`mt-4 rounded-lg px-4 py-3 text-sm ${
-                  uploadStage ===
-                  "error"
-                    ? "bg-red-50 text-red-700"
-                    : uploadStage ===
-                        "success"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {message}
-              </div>
-            )}
-
-        </section>
-
-        {/* ======================================
-            MOE TABLE
-            ====================================== */}
-
-        <section className="rounded-xl bg-white shadow">
-
-          {/* Table header */}
-          <div className="flex items-center justify-between border-b px-6 py-4">
-
-            <div>
-
-              <h2 className="text-xl font-semibold text-gray-900">
-                MOE Schools
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                Total:{" "}
-                {moes.length}
-              </p>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={
-                fetchMOE
-              }
-              disabled={
-                loading ||
-                uploading
-              }
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Refresh
-            </button>
-
-          </div>
-
-          {/* Loading */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
-
-              <div className="mb-4 h-9 w-9 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
-
-              <span>
-                Loading MOE records...
-              </span>
-
-            </div>
-
-          ) : moes.length === 0 ? (
-
-            /* Empty */
-            <div className="p-12 text-center text-gray-500">
-              No MOE schools found.
-            </div>
-
-          ) : (
-
-            /* Data table */
-            <div className="overflow-x-auto">
-
-              <table className="min-w-full text-sm">
-
-                <thead className="bg-gray-100">
-
-                  <tr>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      ID
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      School Name
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      School Address
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      Opening Period
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      School Type ID
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      Allowed School Level ID
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      Class to Be Taught ID
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      Created At
-                    </th>
-
-                    <th className="whitespace-nowrap px-4 py-3 text-left">
-                      Updated At
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody className="divide-y">
-
-                  {moes.map(
-                    (school) => (
-                      <tr
-                        key={
-                          school.id
-                        }
-                        className="transition hover:bg-gray-50"
-                      >
-
-                        <td className="px-4 py-3">
-                          {school.id}
-                        </td>
-
-                        <td className="px-4 py-3 font-medium">
-                          {school.schoolName ||
-                            "-"}
-                        </td>
-
-                        <td className="min-w-[350px] px-4 py-3">
-                          {school.schoolAddress ||
-                            "-"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {school.openingPeriod ||
-                            "-"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {school.schoolTypeId ??
-                            "-"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {school.allowedSchoolLevelId ??
-                            "-"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {school.classToBeTaughtId ??
-                            "-"}
-                        </td>
-
-                        <td className="whitespace-nowrap px-4 py-3">
-                          {formatDate(
-                            school.createdAt
-                          )}
-                        </td>
-
-                        <td className="whitespace-nowrap px-4 py-3">
-                          {formatDate(
-                            school.updatedAt
-                          )}
-                        </td>
-
-                      </tr>
-                    )
-                  )}
-
-                </tbody>
-
-              </table>
-
+                Selected file:
+              </strong>{" "}
+              {file.name}
             </div>
           )}
 
-        </section>
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={
+              !file || uploading
+            }
+            style={{
+              marginTop: "20px",
+              padding:
+                "12px 22px",
+              border: "none",
+              borderRadius: "8px",
+              background:
+                !file || uploading
+                  ? "#aaa"
+                  : "#111",
+              color: "#fff",
+              cursor:
+                !file || uploading
+                  ? "not-allowed"
+                  : "pointer",
+              fontSize: "16px",
+            }}
+          >
+            {uploading
+              ? "Importing..."
+              : "Upload & Import"}
+          </button>
 
+          {(uploading ||
+            percent > 0 ||
+            success) && (
+            <div
+              style={{
+                marginTop: "30px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <strong>
+                  Import Progress
+                </strong>
+
+                <strong>
+                  {percent}%
+                </strong>
+              </div>
+
+              <div
+                style={{
+                  width: "100%",
+                  height: "18px",
+                  background:
+                    "#e5e7eb",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width:
+                      progressWidth,
+                    height: "100%",
+                    background:
+                      "#2563eb",
+                    transition:
+                      "width 0.2s ease",
+                  }}
+                />
+              </div>
+
+              <p
+                style={{
+                  marginTop: "12px",
+                  color: "#444",
+                }}
+              >
+                {status}
+              </p>
+            </div>
+          )}
+
+          {(totalSheets > 0 ||
+            totalRecords > 0) && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "12px",
+                marginTop: "25px",
+              }}
+            >
+              <InfoBox
+                label="Total Sheets"
+                value={
+                  totalSheets
+                }
+              />
+
+              <InfoBox
+                label="Current Sheet"
+                value={
+                  totalSheets > 0
+                    ? `${currentSheet} / ${totalSheets}`
+                    : "-"
+                }
+              />
+
+              <InfoBox
+                label="Total Records"
+                value={totalRecords.toLocaleString()}
+              />
+
+              <InfoBox
+                label="Imported"
+                value={importedRecords.toLocaleString()}
+              />
+            </div>
+          )}
+
+          {currentSheetName && (
+            <div
+              style={{
+                marginTop: "25px",
+                padding: "18px",
+                borderRadius: "8px",
+                background:
+                  "#eff6ff",
+              }}
+            >
+              <strong>
+                Current Sheet
+              </strong>
+
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "18px",
+                }}
+              >
+                {currentSheetName}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "6px",
+                  color: "#555",
+                }}
+              >
+                Records:{" "}
+                {currentRecord.toLocaleString()}{" "}
+                /{" "}
+                {currentSheetRecords.toLocaleString()}
+              </div>
+            </div>
+          )}
+
+          {completedSheets.length >
+            0 && (
+            <div
+              style={{
+                marginTop: "25px",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "20px",
+                }}
+              >
+                Sheet Progress
+              </h2>
+
+              <div>
+                {completedSheets.map(
+                  (sheet) => (
+                    <div
+                      key={
+                        sheet.sheetIndex
+                      }
+                      style={{
+                        display: "flex",
+                        justifyContent:
+                          "space-between",
+                        alignItems:
+                          "center",
+                        padding:
+                          "12px 15px",
+                        marginBottom:
+                          "8px",
+                        borderRadius:
+                          "8px",
+                        background:
+                          "#f0fdf4",
+                        border:
+                          "1px solid #bbf7d0",
+                      }}
+                    >
+                      <span>
+                        ✓{" "}
+                        {sheet.sheetName}
+                      </span>
+
+                      <strong>
+                        {sheet.sheetImported.toLocaleString()}{" "}
+                        records
+                      </strong>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {success && (
+            <div
+              style={{
+                marginTop: "25px",
+                padding: "18px",
+                borderRadius: "8px",
+                background:
+                  "#f0fdf4",
+                border:
+                  "1px solid #86efac",
+                color: "#166534",
+              }}
+            >
+              <strong>
+                ✓ Import completed
+                successfully
+              </strong>
+
+              <div
+                style={{
+                  marginTop: "8px",
+                }}
+              >
+                Sheets processed:{" "}
+                {totalSheets}
+              </div>
+
+              <div>
+                Total records:{" "}
+                {totalRecords.toLocaleString()}
+              </div>
+
+              <div>
+                Successfully imported:{" "}
+                {importedRecords.toLocaleString()}
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                marginTop: "25px",
+                padding: "18px",
+                borderRadius: "8px",
+                background:
+                  "#fef2f2",
+                border:
+                  "1px solid #fca5a5",
+                color: "#991b1b",
+              }}
+            >
+              <strong>
+                ✕ Import failed
+              </strong>
+
+              <div
+                style={{
+                  marginTop: "8px",
+                }}
+              >
+                {error}
+              </div>
+
+              {importedRecords >
+                0 && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                  }}
+                >
+                  Records imported before
+                  failure:{" "}
+                  {importedRecords.toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function InfoBox({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div
+      style={{
+        padding: "16px",
+        borderRadius: "8px",
+        background: "#f8fafc",
+        border:
+          "1px solid #e2e8f0",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#64748b",
+          marginBottom: "5px",
+        }}
+      >
+        {label}
       </div>
 
-    </main>
+      <div
+        style={{
+          fontSize: "22px",
+          fontWeight: "bold",
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
