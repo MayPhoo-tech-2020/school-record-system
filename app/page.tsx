@@ -237,67 +237,6 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <div style={{ marginTop: "35px" }}>
-          <h2
-            style={{
-              fontSize: "22px",
-              marginBottom: "15px",
-            }}
-          >
-            Quick Actions
-          </h2>
-
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
-            <Link
-              href="/moe"
-              style={{
-                padding: "12px 18px",
-                background: "#ffffff",
-                color: "#111",
-                textDecoration: "none",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              MOE Dashboard
-            </Link>
-
-            <Link
-              href="/moe/import"
-              style={{
-                padding: "12px 18px",
-                background: "#111",
-                color: "#fff",
-                textDecoration: "none",
-                borderRadius: "8px",
-              }}
-            >
-              Import MOE Data
-            </Link>
-
-            <Link
-              href="/moe/schools"
-              style={{
-                padding: "12px 18px",
-                background: "#ffffff",
-                color: "#111",
-                textDecoration: "none",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-              }}
-            >
-              View MOE Schools
-            </Link>
-          </div>
-        </div>
       </div>
     </main>
   );
