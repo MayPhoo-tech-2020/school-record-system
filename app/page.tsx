@@ -2,59 +2,56 @@
 
 import { ChangeEvent, useEffect, useState } from "react";
 
-type Institution = {
+type MOE = {
   id: number;
-  name: string;
-  type: string | null;
-  address: string | null;
-  region: string | null;
-  township: string | null;
-  phone: string | null;
-  email: string | null;
-  website: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  schoolLevel: string | null;
-  classes: string | null;
+  schoolName: string;
+  schoolAddress: string | null;
   openingPeriod: string | null;
-  sourceId: number | null;
+  schoolTypeId: number | null;
+  allowedSchoolLevelId: number | null;
+  classToBeTaughtId: number | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function Home() {
-  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [moes, setMoes] = useState<MOE[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const fetchInstitutions = async () => {
+  const fetchMOE = async () => {
     try {
       setLoading(true);
 
-      const response = await fetch("/api/institutions");
+      const response = await fetch("/api/moe");
       const result = await response.json();
 
       if (result.success) {
-        setInstitutions(result.data);
+        setMoes(result.data);
       } else {
         setMessage(result.message || "Failed to load data");
       }
     } catch (error) {
       console.error(error);
-      setMessage("Failed to load institutions");
+      setMessage("Failed to load MOE records");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInstitutions();
+    fetchMOE();
   }, []);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] || null;
 
-    if (selectedFile && !selectedFile.name.toLowerCase().endsWith(".csv")) {
+    if (
+      selectedFile &&
+      !selectedFile.name.toLowerCase().endsWith(".csv")
+    ) {
       setMessage("Please select a CSV file.");
       setFile(null);
       return;
@@ -77,7 +74,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/institutions/import", {
+      const response = await fetch("/api/moe/import", {
         method: "POST",
         body: formData,
       });
@@ -89,7 +86,7 @@ export default function Home() {
         return;
       }
 
-      setMessage(`Successfully imported ${result.count} institution(s).`);
+      setMessage(`Successfully imported ${result.count} school(s).`);
       setFile(null);
 
       const input = document.getElementById(
@@ -100,7 +97,7 @@ export default function Home() {
         input.value = "";
       }
 
-      await fetchInstitutions();
+      await fetchMOE();
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong while uploading.");
@@ -112,19 +109,21 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-[1800px]">
+        {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
             School Record System
           </h1>
+
           <p className="mt-1 text-gray-600">
-            Upload CSV and manage institution records.
+            MOE school records management system.
           </p>
         </div>
 
         {/* Upload */}
         <section className="mb-6 rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-xl font-semibold">
-            Import CSV
+            Import MOE CSV
           </h2>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -172,15 +171,16 @@ export default function Home() {
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
               <h2 className="text-xl font-semibold">
-                All Institutions
+                MOE Schools
               </h2>
+
               <p className="text-sm text-gray-500">
-                Total: {institutions.length}
+                Total: {moes.length}
               </p>
             </div>
 
             <button
-              onClick={fetchInstitutions}
+              onClick={fetchMOE}
               disabled={loading}
               className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
             >
@@ -192,95 +192,97 @@ export default function Home() {
             <div className="p-8 text-center text-gray-500">
               Loading...
             </div>
-          ) : institutions.length === 0 ? (
+          ) : moes.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              No institutions found.
+              No MOE schools found.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-100">
                   <tr>
-                    <th className="px-4 py-3 text-left">ID</th>
-                    <th className="px-4 py-3 text-left">Name</th>
-                    <th className="px-4 py-3 text-left">Type</th>
-                    <th className="px-4 py-3 text-left">Address</th>
-                    <th className="px-4 py-3 text-left">Region</th>
-                    <th className="px-4 py-3 text-left">Township</th>
-                    <th className="px-4 py-3 text-left">Phone</th>
-                    <th className="px-4 py-3 text-left">Email</th>
-                    <th className="px-4 py-3 text-left">Website</th>
-                    <th className="px-4 py-3 text-left">Latitude</th>
-                    <th className="px-4 py-3 text-left">Longitude</th>
-                    <th className="px-4 py-3 text-left">School Level</th>
-                    <th className="px-4 py-3 text-left">Classes</th>
-                    <th className="px-4 py-3 text-left">Opening Period</th>
-                    <th className="px-4 py-3 text-left">Source ID</th>
+                    <th className="px-4 py-3 text-left">
+                      ID
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      School Name
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      School Address
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Opening Period
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      School Type ID
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Allowed School Level ID
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Class to Be Taught ID
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Created At
+                    </th>
+
+                    <th className="px-4 py-3 text-left">
+                      Updated At
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y">
-                  {institutions.map((institution) => (
+                  {moes.map((school) => (
                     <tr
-                      key={institution.id}
+                      key={school.id}
                       className="hover:bg-gray-50"
                     >
-                      <td className="px-4 py-3">{institution.id}</td>
+                      <td className="px-4 py-3">
+                        {school.id}
+                      </td>
 
                       <td className="px-4 py-3 font-medium">
-                        {institution.name}
+                        {school.schoolName}
+                      </td>
+
+                      <td className="min-w-[350px] px-4 py-3">
+                        {school.schoolAddress || "-"}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.type || "-"}
-                      </td>
-
-                      <td className="min-w-[300px] px-4 py-3">
-                        {institution.address || "-"}
+                        {school.openingPeriod || "-"}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.region || "-"}
+                        {school.schoolTypeId ?? "-"}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.township || "-"}
+                        {school.allowedSchoolLevelId ?? "-"}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.phone || "-"}
+                        {school.classToBeTaughtId ?? "-"}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.email || "-"}
+                        {new Date(
+                          school.createdAt
+                        ).toLocaleString()}
                       </td>
 
                       <td className="px-4 py-3">
-                        {institution.website || "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.latitude ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.longitude ?? "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.schoolLevel || "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.classes || "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.openingPeriod || "-"}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {institution.sourceId ?? "-"}
+                        {new Date(
+                          school.updatedAt
+                        ).toLocaleString()}
                       </td>
                     </tr>
                   ))}
