@@ -21,6 +21,8 @@ export default function MOESchoolsPage() {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
+  const [region, setRegion] = useState("");
+  const [township, setTownship] = useState("");
   const [schoolType, setSchoolType] = useState("");
   const [schoolLevel, setSchoolLevel] = useState("");
   const [classToBeTaught, setClassToBeTaught] = useState("");
@@ -28,6 +30,10 @@ export default function MOESchoolsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedSchool, setSelectedSchool] =
     useState<School | null>(null);
+
+  // --------------------------------------------------
+  // LOAD SCHOOL DATA
+  // --------------------------------------------------
 
   useEffect(() => {
     async function fetchSchools() {
@@ -61,6 +67,103 @@ export default function MOESchoolsPage() {
     fetchSchools();
   }, []);
 
+  // --------------------------------------------------
+  // REGION / STATE FROM ADDRESS
+  // --------------------------------------------------
+
+  const getRegion = (address: string | null) => {
+    if (!address) return "";
+
+    const parts = address
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) return "";
+
+    const regionKeywords = [
+      "region",
+      "state",
+    ];
+
+    const found = parts.find((part) => {
+      const lower = part.toLowerCase();
+
+      return regionKeywords.some((keyword) =>
+        lower.includes(keyword)
+      );
+    });
+
+    return found || "";
+  };
+
+  // --------------------------------------------------
+  // TOWNSHIP FROM ADDRESS
+  // --------------------------------------------------
+
+  const getTownship = (address: string | null) => {
+    if (!address) return "";
+
+    const parts = address
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) return "";
+
+    const townshipPart = parts.find((part) =>
+      part.toLowerCase().includes("township")
+    );
+
+    return townshipPart || "";
+  };
+
+  // --------------------------------------------------
+  // REGION OPTIONS
+  // --------------------------------------------------
+
+  const regions = useMemo(() => {
+    return Array.from(
+      new Set(
+        schools
+          .map((school) =>
+            getRegion(school.schoolAddress)
+          )
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }, [schools]);
+
+  // --------------------------------------------------
+  // TOWNSHIP OPTIONS
+  // DEPENDS ON REGION
+  // --------------------------------------------------
+
+  const townships = useMemo(() => {
+    let filteredSchools = schools;
+
+    if (region) {
+      filteredSchools = filteredSchools.filter(
+        (school) =>
+          getRegion(school.schoolAddress) === region
+      );
+    }
+
+    return Array.from(
+      new Set(
+        filteredSchools
+          .map((school) =>
+            getTownship(school.schoolAddress)
+          )
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }, [schools, region]);
+
+  // --------------------------------------------------
+  // SCHOOL TYPE OPTIONS
+  // --------------------------------------------------
+
   const schoolTypes = useMemo(() => {
     return Array.from(
       new Set(
@@ -68,8 +171,12 @@ export default function MOESchoolsPage() {
           .map((school) => school.schoolType)
           .filter(Boolean)
       )
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b));
   }, [schools]);
+
+  // --------------------------------------------------
+  // SCHOOL LEVEL OPTIONS
+  // --------------------------------------------------
 
   const schoolLevels = useMemo(() => {
     return Array.from(
@@ -78,8 +185,12 @@ export default function MOESchoolsPage() {
           .map((school) => school.allowedSchoolLevel)
           .filter(Boolean)
       )
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b));
   }, [schools]);
+
+  // --------------------------------------------------
+  // CLASS OPTIONS
+  // --------------------------------------------------
 
   const classes = useMemo(() => {
     return Array.from(
@@ -88,13 +199,25 @@ export default function MOESchoolsPage() {
           .map((school) => school.classToBeTaught)
           .filter(Boolean)
       )
-    ).sort();
+    ).sort((a, b) => a.localeCompare(b));
   }, [schools]);
+
+  // --------------------------------------------------
+  // FILTER SCHOOLS
+  // --------------------------------------------------
 
   const filteredSchools = useMemo(() => {
     const searchText = search.trim().toLowerCase();
 
     return schools.filter((school) => {
+      const schoolRegion = getRegion(
+        school.schoolAddress
+      );
+
+      const schoolTownship = getTownship(
+        school.schoolAddress
+      );
+
       const matchesSearch =
         !searchText ||
         school.schoolName
@@ -104,8 +227,15 @@ export default function MOESchoolsPage() {
           .toLowerCase()
           .includes(searchText);
 
+      const matchesRegion =
+        !region || schoolRegion === region;
+
+      const matchesTownship =
+        !township || schoolTownship === township;
+
       const matchesSchoolType =
-        !schoolType || school.schoolType === schoolType;
+        !schoolType ||
+        school.schoolType === schoolType;
 
       const matchesSchoolLevel =
         !schoolLevel ||
@@ -117,6 +247,8 @@ export default function MOESchoolsPage() {
 
       return (
         matchesSearch &&
+        matchesRegion &&
+        matchesTownship &&
         matchesSchoolType &&
         matchesSchoolLevel &&
         matchesClass
@@ -125,10 +257,16 @@ export default function MOESchoolsPage() {
   }, [
     schools,
     search,
+    region,
+    township,
     schoolType,
     schoolLevel,
     classToBeTaught,
   ]);
+
+  // --------------------------------------------------
+  // PAGINATION
+  // --------------------------------------------------
 
   const totalPages = Math.max(
     1,
@@ -151,6 +289,8 @@ export default function MOESchoolsPage() {
     setCurrentPage(1);
   }, [
     search,
+    region,
+    township,
     schoolType,
     schoolLevel,
     classToBeTaught,
@@ -162,8 +302,14 @@ export default function MOESchoolsPage() {
     }
   }, [currentPage, totalPages]);
 
+  // --------------------------------------------------
+  // CLEAR FILTERS
+  // --------------------------------------------------
+
   const clearFilters = () => {
     setSearch("");
+    setRegion("");
+    setTownship("");
     setSchoolType("");
     setSchoolLevel("");
     setClassToBeTaught("");
@@ -172,16 +318,24 @@ export default function MOESchoolsPage() {
 
   const hasFilters = Boolean(
     search ||
+      region ||
+      township ||
       schoolType ||
       schoolLevel ||
       classToBeTaught
   );
 
   const activeFilterCount = [
+    region,
+    township,
     schoolType,
     schoolLevel,
     classToBeTaught,
   ].filter(Boolean).length;
+
+  // --------------------------------------------------
+  // RECORD RANGE
+  // --------------------------------------------------
 
   const startRecord =
     filteredSchools.length === 0
@@ -192,6 +346,10 @@ export default function MOESchoolsPage() {
     currentPage * RECORDS_PER_PAGE,
     filteredSchools.length
   );
+
+  // --------------------------------------------------
+  // SCHOOL TYPE BADGE
+  // --------------------------------------------------
 
   const getSchoolTypeBadge = (type: string) => {
     if (!type) {
@@ -219,6 +377,10 @@ export default function MOESchoolsPage() {
     return "bg-gray-100 text-gray-700";
   };
 
+  // --------------------------------------------------
+  // PAGE NUMBERS
+  // --------------------------------------------------
+
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
 
@@ -236,7 +398,11 @@ export default function MOESchoolsPage() {
       pages.push("...");
     }
 
-    const start = Math.max(2, currentPage - 1);
+    const start = Math.max(
+      2,
+      currentPage - 1
+    );
+
     const end = Math.min(
       totalPages - 1,
       currentPage + 1
@@ -257,6 +423,7 @@ export default function MOESchoolsPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
+      {/* HEADER */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -281,8 +448,8 @@ export default function MOESchoolsPage() {
               </div>
 
               <p className="mt-2 text-sm text-slate-500 sm:text-base">
-                Search and manage school records from the Ministry
-                of Education.
+                Search and manage school records from the
+                Ministry of Education.
               </p>
             </div>
 
@@ -297,6 +464,7 @@ export default function MOESchoolsPage() {
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* LOADING */}
         {loading && (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
@@ -311,6 +479,7 @@ export default function MOESchoolsPage() {
           </div>
         )}
 
+        {/* ERROR */}
         {!loading && error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
             <h2 className="font-semibold text-red-900">
@@ -395,7 +564,29 @@ export default function MOESchoolsPage() {
                 </div>
 
                 {/* FILTERS */}
-                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <FilterSelect
+                    id="region"
+                    label="Region / State"
+                    value={region}
+                    onChange={(value) => {
+                      setRegion(value);
+                      setTownship("");
+                    }}
+                    options={regions}
+                    placeholder="All Regions / States"
+                  />
+
+                  <FilterSelect
+                    id="township"
+                    label="Township"
+                    value={township}
+                    onChange={setTownship}
+                    options={townships}
+                    placeholder="All Townships"
+                    disabled={region !== "" && townships.length === 0}
+                  />
+
                   <FilterSelect
                     id="schoolType"
                     label="School Type"
@@ -435,7 +626,7 @@ export default function MOESchoolsPage() {
               </div>
             </div>
 
-            {/* SUMMARY */}
+            {/* SUMMARY CARDS */}
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-sm font-medium text-slate-500">
@@ -495,6 +686,7 @@ export default function MOESchoolsPage() {
                 )}
               </div>
 
+              {/* NO RESULTS */}
               {filteredSchools.length === 0 && (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
@@ -523,7 +715,7 @@ export default function MOESchoolsPage() {
               {filteredSchools.length > 0 && (
                 <div className="mt-4 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px] text-sm">
+                    <table className="w-full min-w-[950px] text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-50 text-left">
                           <th className="w-16 px-4 py-4 text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -593,7 +785,7 @@ export default function MOESchoolsPage() {
                                   )}
                                 </td>
 
-                                <td className="max-w-[250px] px-4 py-4 align-top text-slate-600">
+                                <td className="max-w-[280px] px-4 py-4 align-top text-slate-600">
                                   {school.allowedSchoolLevel ||
                                     "-"}
                                 </td>
@@ -851,6 +1043,20 @@ export default function MOESchoolsPage() {
                 />
 
                 <DetailItem
+                  label="Region / State"
+                  value={getRegion(
+                    selectedSchool.schoolAddress
+                  )}
+                />
+
+                <DetailItem
+                  label="Township"
+                  value={getTownship(
+                    selectedSchool.schoolAddress
+                  )}
+                />
+
+                <DetailItem
                   label="Allowed School Level"
                   value={
                     selectedSchool.allowedSchoolLevel
@@ -900,6 +1106,7 @@ function FilterSelect({
   onChange,
   options,
   placeholder,
+  disabled = false,
 }: {
   id: string;
   label: string;
@@ -907,6 +1114,7 @@ function FilterSelect({
   onChange: (value: string) => void;
   options: string[];
   placeholder: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -921,7 +1129,8 @@ function FilterSelect({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+        disabled={disabled}
+        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
       >
         <option value="">{placeholder}</option>
 
